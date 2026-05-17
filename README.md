@@ -1,9 +1,15 @@
-# PhotoClassifierPro 照片自动分类工具
+# PhotoClassifierPro
 
-智能检测损坏、空镜、闭眼、模糊、遮挡等缺陷照片，一键整理您的相册。
+该项目为 [PhotoClassifier](https://github.com/shenglihalisen/photo-classifier) 优化版，智能检测损坏、空镜、闭眼、模糊、遮挡等缺陷照片，一键整理您的相册。
 
-[![GitHub release\](https://img.shields.io/github/v/release/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/releases)
-[![GitHub last commit\](https://img.shields.io/github/last-commit/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/commits/main)
+<div align="center">
+
+[![GitHub release](https://img.shields.io/github/v/release/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/releases)
+[![GitHub last commit](https://img.shields.io/github/last-commit/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/commits/main)
+
+</div>
+
+---
 
 ## 功能特性
 
@@ -11,17 +17,19 @@
 - **双端支持**：PyQt5 桌面端 + Flask Web 端
 - **两种模式**：自动模式（一键处理）/ 手动确认（逐张审核）
 - **批量处理**：支持文件夹批量扫描和文件拖拽上传
-- **灵活操作**：自动将废片按缺陷类型分类到子文件夹（损坏/空镜/闭眼/模糊/遮挡）
+- **灵活操作**：自动将废片按缺陷类型分类到子文件夹
 
 ## 支持的图片格式
 
-JPG、JPEG、PNG、BMP、TIFF、WebP、GIF、HEIC、HEIF
+```
+JPG, JPEG, PNG, BMP, TIFF, WebP, GIF, HEIC, HEIF
+```
 
 ## 安装
 
 ### 从源码运行
 
-`ash
+```bash
 # 克隆仓库
 git clone https://github.com/shenglihalisen/PhotoClassifierPro.git
 cd PhotoClassifierPro
@@ -34,9 +42,9 @@ python run_desktop.py
 
 # 运行 Web 端
 python run_web.py
-`
+```
 
-Web 端启动后访问 http://localhost:5000
+Web 端启动后访问 `http://localhost:5000`。
 
 ### 下载发行版
 
@@ -44,14 +52,14 @@ Web 端启动后访问 http://localhost:5000
 
 | 文件 | 说明 |
 |------|------|
-| PhotoClassifierPro-Desktop.exe | 桌面端（PyQt5），无需浏览器 |
-| PhotoClassifierPro-Web.exe | Web 端（Flask），启动后浏览器访问使用 |
+| `PhotoClassifierPro-Desktop.exe` | 桌面端（PyQt5），无需浏览器 |
+| `PhotoClassifierPro-Web.exe` | Web 端（Flask），启动后通过浏览器访问使用 |
 
 ## 使用方法
 
 ### Web 端
 
-1. 打开浏览器访问 http://localhost:5000
+1. 打开浏览器访问 `http://localhost:5000`
 2. 选择「上传文件」或「选择文件夹」上传要扫描的照片
 3. 选择扫描模式（自动 / 手动确认）
 4. 点击「开始扫描」
@@ -59,7 +67,7 @@ Web 端启动后访问 http://localhost:5000
 
 ### 桌面端
 
-1. 运行 PhotoClassifierPro-Desktop.exe 或 python run_desktop.py
+1. 运行 `PhotoClassifierPro-Desktop.exe` 或 `python run_desktop.py`
 2. 选择要扫描的文件夹
 3. 等待扫描完成
 4. 查看分类结果并处理废片
@@ -76,7 +84,7 @@ Web 端启动后访问 http://localhost:5000
 
 ## 项目结构
 
-`
+```
 PhotoClassifierPro/
 ├── classifiers/          # 缺陷检测器
 │   ├── base.py           # 基类和类型定义
@@ -97,7 +105,7 @@ PhotoClassifierPro/
 ├── requirements.txt      # Python 依赖
 ├── CHANGELOG.md          # 更新日志
 └── README.md             # 本文件
-`
+```
 
 ## 技术栈
 
