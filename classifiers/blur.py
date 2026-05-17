@@ -22,7 +22,7 @@ class BlurDetector(BaseDetector):
     # 检测阈值
     LAPLACIAN_THRESHOLD = 60       # 拉普拉斯方差阈值
     SOBEL_THRESHOLD = 35           # Sobel 边缘均值阈值
-    BLUR_CONFIDENCE_THRESHOLD = 0.4  # 综合置信度阈值
+    BLUR_CONFIDENCE_THRESHOLD = 0.5  # 综合置信度阈值
 
     @property
     def defect_type(self) -> DefectType:

@@ -28,6 +28,24 @@ class ObstructionDetector(BaseDetector):
     SKIN_LOWER = np.array([0, 30, 60], dtype=np.uint8)
     SKIN_UPPER = np.array([20, 170, 255], dtype=np.uint8)
 
+    # 手指遮挡阈值
+    FINGER_SKIN_RATIO_THRESHOLD = 0.45        # 整图肤色占比
+    FINGER_ABOVE_SKIN_RATIO_THRESHOLD = 0.5   # 人脸上方肤色占比
+
+    # 图像最大边长，超过此值先缩小
+    MAX_IMAGE_DIM = 1200
+
+    def __init__(self):
+        self._face_cascade = None
+
+    def _get_face_cascade(self):
+        """延迟加载 Haar 级联分类器"""
+        if self._face_cascade is None:
+            self._face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+            )
+        return self._face_cascade
+
     @property
     def defect_type(self) -> DefectType:
         return DefectType.OBSTRUCTION
@@ -43,6 +61,13 @@ class ObstructionDetector(BaseDetector):
                     confidence=0.0,
                     description="无法读取图像，跳过遮挡检测"
                 )
+
+            # 缩小大图（Haar 在大图上产生大量误检）
+            h, w = img.shape[:2]
+            if max(w, h) > self.MAX_IMAGE_DIM:
+                scale = self.MAX_IMAGE_DIM / max(w, h)
+                img = cv2.resize(img, (int(w * scale), int(h * scale)),
+                                 interpolation=cv2.INTER_AREA)
 
             reasons = []
             scores = []
@@ -196,38 +221,29 @@ class ObstructionDetector(BaseDetector):
         检测手指遮挡
 
         在图像中检测肤色像素，如果在人脸区域周围或图像边缘
-        存在大面积肤色像素集中区域，可能是指 finger 遮挡。
+        存在大面积肤色像素集中区域，可能是手指遮挡。
 
         返回:
             {"is_obstructed": bool, "confidence": float, "description": str}
         """
         try:
-            import mediapipe as mp
-
             h, w = img.shape[:2]
-            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            face_mesh = mp.solutions.face_mesh.FaceMesh(
-                static_image_mode=True,
-                max_num_faces=5,
-                refine_landmarks=True,
-                min_detection_confidence=0.5,
+            if h < 60 or w < 60:
+                return {"is_obstructed": False, "confidence": 0.0, "description": ""}
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            face_cascade = self._get_face_cascade()
+
+            # 检测人脸
+            faces = face_cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
             )
-            results = face_mesh.process(rgb_img)
-
-            # 无人脸时跳过手指遮挡检测
-            if not results.multi_face_landmarks:
-                return {
-                    "is_obstructed": False,
-                    "confidence": 0.0,
-                    "description": ""
-                }
 
             # 转换为 HSV 检测肤色
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             skin_mask = cv2.inRange(hsv, self.SKIN_LOWER, self.SKIN_UPPER)
 
-            # 对肤色掩码做形态学操作去噪
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
             skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
             skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_OPEN, kernel, iterations=1)
@@ -236,32 +252,29 @@ class ObstructionDetector(BaseDetector):
             total_pixels = h * w
             skin_ratio = total_skin_pixels / total_pixels
 
-            # 肤色占比过高（> 60%）可能存在手指遮挡
-            FINGER_SKIN_RATIO_THRESHOLD = 0.60
+            if skin_ratio > self.FINGER_SKIN_RATIO_THRESHOLD:
+                # 特写人脸也会肤色占比高，排除人脸占比较大的情况
+                face_ratio = 0.0
+                for (fx2, fy2, fw2, fh2) in faces:
+                    face_ratio += fw2 * fh2
+                face_ratio /= (h * w)
 
-            if skin_ratio > FINGER_SKIN_RATIO_THRESHOLD:
-                confidence = min(1.0, (skin_ratio - FINGER_SKIN_RATIO_THRESHOLD) / 0.2 + 0.5)
-                return {
-                    "is_obstructed": True,
-                    "confidence": confidence,
-                    "description": f"手指遮挡: 肤色占比={skin_ratio:.1%} (阈值={FINGER_SKIN_RATIO_THRESHOLD:.0%})"
-                }
+                if face_ratio < 0.15:
+                    confidence = min(1.0, (skin_ratio - self.FINGER_SKIN_RATIO_THRESHOLD) / 0.2 + 0.5)
+                    return {
+                        "is_obstructed": True,
+                        "confidence": confidence,
+                        "description": f"手指遮挡: 肤色占比={skin_ratio:.1%} (阈值={self.FINGER_SKIN_RATIO_THRESHOLD:.0%})"
+                    }
 
-            # 检查人脸区域上方的肤色集中区域（手指可能从上方遮挡）
-            for face_landmarks in results.multi_face_landmarks:
-                # 获取人脸边界框
-                face_x_coords = [lm.x * w for lm in face_landmarks.landmark]
-                face_y_coords = [lm.y * h for lm in face_landmarks.landmark]
-                face_x_min = int(min(face_x_coords))
-                face_x_max = int(max(face_x_coords))
-                face_y_min = int(min(face_y_coords))
-                face_y_max = int(max(face_y_coords))
-
-                # 检查人脸上方区域
-                above_face_y_start = max(0, face_y_min - int((face_y_max - face_y_min) * 0.5))
-                above_face_y_end = face_y_min
-                above_face_x_start = max(0, face_x_min - 20)
-                above_face_x_end = min(w, face_x_max + 20)
+            # 检查人脸上方区域的肤色集中（排除特写脸—额头也是肤色）
+            for (fx2, fy2, fw2, fh2) in faces:
+                if fw2 * fh2 > h * w * 0.30:
+                    continue
+                above_face_y_start = max(0, fy2 - int(fh2 * 0.5))
+                above_face_y_end = fy2
+                above_face_x_start = max(0, fx2 - 20)
+                above_face_x_end = min(w, fx2 + fw2 + 20)
 
                 if above_face_y_end > above_face_y_start:
                     above_region = skin_mask[above_face_y_start:above_face_y_end,
@@ -269,7 +282,7 @@ class ObstructionDetector(BaseDetector):
                     above_region_size = above_region.size
                     if above_region_size > 0:
                         above_skin_ratio = cv2.countNonZero(above_region) / above_region_size
-                        if above_skin_ratio > 0.7:
+                        if above_skin_ratio > self.FINGER_ABOVE_SKIN_RATIO_THRESHOLD:
                             confidence = min(1.0, above_skin_ratio)
                             return {
                                 "is_obstructed": True,
@@ -277,22 +290,7 @@ class ObstructionDetector(BaseDetector):
                                 "description": f"手指遮挡: 人脸上方肤色集中(占比={above_skin_ratio:.1%})"
                             }
 
-            return {
-                "is_obstructed": False,
-                "confidence": 0.0,
-                "description": ""
-            }
+            return {"is_obstructed": False, "confidence": 0.0, "description": ""}
 
-        except ImportError:
-            # MediaPipe 不可用时跳过手指遮挡检测
-            return {
-                "is_obstructed": False,
-                "confidence": 0.0,
-                "description": ""
-            }
         except Exception:
-            return {
-                "is_obstructed": False,
-                "confidence": 0.0,
-                "description": ""
-            }
+            return {"is_obstructed": False, "confidence": 0.0, "description": ""}

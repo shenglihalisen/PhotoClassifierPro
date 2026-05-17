@@ -5,6 +5,8 @@
 """
 
 import os
+import cv2
+import numpy as np
 import shutil
 from typing import Callable
 
@@ -46,6 +48,7 @@ class PhotoClassifier:
 
         依次运行所有检测器，返回所有检测结果。
         如果文件损坏，直接返回，不运行其他检测器。
+        过小的图片跳过人脸相关检测（闭眼、遮挡）。
 
         参数:
             image_path: 图片文件路径
@@ -55,7 +58,25 @@ class PhotoClassifier:
         """
         results = []
 
+        # 图像尺寸预检：读取图片尺寸，过小图跳过人脸相关检测
+        skip_face_detectors = False
+        img_size = self._get_image_size(image_path)
+        if img_size is not None:
+            h, w = img_size
+            if h < 100 or w < 100:
+                skip_face_detectors = True
+
         for detector in self.detectors:
+            # 跳过人脸相关检测器（闭眼、遮挡）用于过小图像
+            if skip_face_detectors and isinstance(detector, (BlinkDetector, ObstructionDetector)):
+                results.append(DetectionResult(
+                    is_defective=False,
+                    defect_type=None,
+                    confidence=0.0,
+                    description=f"图像尺寸过小({h}x{w})，跳过{detector.defect_type.value}检测"
+                ))
+                continue
+
             result = detector.detect(image_path)
             results.append(result)
 
@@ -64,6 +85,34 @@ class PhotoClassifier:
                 break
 
         return results
+
+    @staticmethod
+    def _get_image_size(image_path: str) -> tuple | None:
+        """快速读取图片尺寸，不解码全部像素数据"""
+        try:
+            from PIL import Image
+            with Image.open(image_path) as img:
+                return img.height, img.width
+        except Exception:
+            pass
+        try:
+            # 备选：用 OpenCV 只读元数据
+            img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+            if img is not None:
+                return img.shape[:2]
+        except Exception:
+            pass
+        try:
+            # 最后备选：仅读取文件头判断
+            with open(image_path, 'rb') as f:
+                header = f.read(32)
+            if header.startswith(b'\xff\xd8'):
+                return _jpeg_size_from_header(header)
+            if header.startswith(b'\x89PNG'):
+                return _png_size_from_header(header)
+        except Exception:
+            pass
+        return None
 
     def classify_batch(
         self,
@@ -210,3 +259,37 @@ class PhotoClassifier:
                     image_files.append(full_path)
 
         return image_files
+
+
+def _jpeg_size_from_header(header: bytes) -> tuple | None:
+    """从 JPEG 文件头解析尺寸"""
+    try:
+        pos = 2
+        while pos < len(header) - 1:
+            if header[pos] != 0xFF:
+                break
+            marker = header[pos + 1]
+            if marker == 0xC0 or marker == 0xC2:
+                height = (header[pos + 5] << 8) | header[pos + 6]
+                width = (header[pos + 7] << 8) | header[pos + 8]
+                return height, width
+            if marker == 0xD9:
+                break
+            seg_len = (header[pos + 2] << 8) | header[pos + 3]
+            pos += seg_len + 2
+    except Exception:
+        pass
+    return None
+
+
+def _png_size_from_header(header: bytes) -> tuple | None:
+    """从 PNG 文件头解析尺寸（IHDR 块）"""
+    try:
+        if len(header) >= 24:
+            width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19]
+            height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23]
+            if width > 0 and height > 0:
+                return height, width
+    except Exception:
+        pass
+    return None
