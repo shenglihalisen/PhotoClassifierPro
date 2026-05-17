@@ -1,5 +1,5 @@
 # PhotoClassifierPro 照片自动分类工具
-
+# 该项目为PhotoClassifier优化版，原项目请见(https://github.com/shenglihalisen/PhotoClassifier)
 智能检测损坏、空镜、闭眼、模糊、遮挡等缺陷照片，一键整理您的相册。
 
 [![GitHub release\](https://img.shields.io/github/v/release/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/releases)
