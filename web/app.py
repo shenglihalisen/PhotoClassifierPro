@@ -44,7 +44,7 @@ from flask import Flask, render_template, request, jsonify, g
 # ============================================================
 # 日志配置
 # ============================================================
-logger = logging.getLogger("photo_classifier")
+logger = logging.getLogger("PhotoClassifierPro")
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler(sys.stdout)
 _handler.setFormatter(logging.Formatter(
@@ -98,7 +98,7 @@ RATE_LIMIT_MAX_REQUESTS = 60
 RATE_LIMIT_WINDOW = 60  # 秒
 
 # CSRF Token 使用的密钥（生产环境应从环境变量读取）
-CSRF_SECRET_KEY = os.environ.get("CSRF_SECRET_KEY", "photo-classifier-csrf-secret-key-2024")
+CSRF_SECRET_KEY = os.environ.get("CSRF_SECRET_KEY", "photoclassifierpro-csrf-secret-key-2024")
 
 # 删除操作确认 Token 有效期（秒）
 DELETE_TOKEN_EXPIRE = 300  # 5 分钟
@@ -448,7 +448,7 @@ class TempFileCleaner:
             cleaned_count = 0
 
             for entry in os.listdir(temp_base):
-                if not entry.startswith("photo_classifier_"):
+                if not entry.startswith("PhotoClassifierPro_"):
                     continue
                 full_path = os.path.join(temp_base, entry)
                 if not os.path.isdir(full_path):
@@ -747,7 +747,7 @@ def create_app() -> Flask:
                 return jsonify({"error": "请选择要上传的文件"}), 400
 
             # 创建临时目录存储上传的文件
-            temp_dir = tempfile.mkdtemp(prefix="photo_classifier_")
+            temp_dir = tempfile.mkdtemp(prefix="PhotoClassifierPro_")
             folder_path = temp_dir
             total_size = 0
 

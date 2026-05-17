@@ -10,8 +10,8 @@
 - 新增图像尺寸预检（<100px 跳过人脸检测器）
 
 ### 下载
-- PhotoClassifier-Desktop.exe - 桌面端
-- PhotoClassifier-Web.exe - Web 端
+- PhotoClassifierPro-Desktop.exe - 桌面端
+- PhotoClassifierPro-Web.exe - Web 端
 
 ## v2.0.2 (2026-05-15)
 

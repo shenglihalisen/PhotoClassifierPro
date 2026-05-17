@@ -11,7 +11,7 @@
     - 关于对话框、预览对话框支持缩放
     - 分批加载扫描结果，防止大量图片时主线程冻结
 
-作者: PhotoClassifier Team
+作者: PhotoClassifierPro Team
 版本: v2.0.0
 """
 
@@ -48,7 +48,7 @@ from classifiers.base import DefectType
 
 APP_NAME = "照片自动分类工具"
 APP_VERSION = "v2.0.0"
-APP_AUTHOR = "PhotoClassifier Team"
+APP_AUTHOR = "PhotoClassifierPro Team"
 
 # 禁止访问的系统目录
 FORBIDDEN_PATHS = [
@@ -82,7 +82,7 @@ DEFECT_TYPE_VALUE_NAMES = {
 }
 
 # QSettings 组织名和应用名（用于窗口状态记忆）
-SETTINGS_ORG = "PhotoClassifier"
+SETTINGS_ORG = "PhotoClassifierPro"
 SETTINGS_APP = "DesktopApp"
 
 # 缩略图最大尺寸
