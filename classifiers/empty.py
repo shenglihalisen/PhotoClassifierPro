@@ -82,7 +82,7 @@ class EmptyDetector(BaseDetector):
             # 纹理缺失评分
             if laplacian_var < self.LAPLACIAN_VAR_THRESHOLD:
                 texture_score = 1.0 - (laplacian_var / self.LAPLACIAN_VAR_THRESHOLD)
-                scores.append(max(0.5, texture_score))
+                scores.append(texture_score)
                 reasons.append(f"无纹理内容(拉普拉斯方差={laplacian_var:.1f})")
             else:
                 scores.append(0.0)
@@ -90,7 +90,7 @@ class EmptyDetector(BaseDetector):
             # 色彩缺失评分
             if color_std < self.COLOR_STD_THRESHOLD:
                 color_score = 1.0 - (color_std / self.COLOR_STD_THRESHOLD)
-                scores.append(max(0.3, color_score))
+                scores.append(color_score)
                 reasons.append(f"缺乏色彩变化(颜色标准差={color_std:.1f})")
             else:
                 scores.append(0.0)

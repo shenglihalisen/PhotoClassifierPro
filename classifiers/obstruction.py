@@ -6,6 +6,7 @@
 
 import cv2
 import numpy as np
+import threading
 
 from .base import BaseDetector, DetectionResult, DefectType
 
@@ -24,9 +25,9 @@ class ObstructionDetector(BaseDetector):
     CORNER_UNIFORMITY_THRESHOLD = 8   # 四角区域颜色均匀性阈值（标准差，降低以减少误判）
     CORNER_CHECK_SIZE = 0.15          # 四角检查区域占图像尺寸的比例
 
-    # 肤色范围 (HSV)
-    SKIN_LOWER = np.array([0, 30, 60], dtype=np.uint8)
-    SKIN_UPPER = np.array([20, 170, 255], dtype=np.uint8)
+    # 肤色范围 (HSV) — 兼容浅色与深色皮肤
+    SKIN_LOWER = np.array([0, 20, 40], dtype=np.uint8)
+    SKIN_UPPER = np.array([25, 200, 255], dtype=np.uint8)
 
     # 手指遮挡阈值
     FINGER_SKIN_RATIO_THRESHOLD = 0.45        # 整图肤色占比
@@ -37,13 +38,15 @@ class ObstructionDetector(BaseDetector):
 
     def __init__(self):
         self._face_cascade = None
+        self._cascade_lock = threading.Lock()
 
     def _get_face_cascade(self):
-        """延迟加载 Haar 级联分类器"""
         if self._face_cascade is None:
-            self._face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-            )
+            with self._cascade_lock:
+                if self._face_cascade is None:
+                    self._face_cascade = cv2.CascadeClassifier(
+                        cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+                    )
         return self._face_cascade
 
     @property
@@ -292,5 +295,8 @@ class ObstructionDetector(BaseDetector):
 
             return {"is_obstructed": False, "confidence": 0.0, "description": ""}
 
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger("PhotoClassifierPro").warning(
+                "手指遮挡检测异常: %s", str(e))
             return {"is_obstructed": False, "confidence": 0.0, "description": ""}

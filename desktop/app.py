@@ -894,7 +894,7 @@ class DesktopApp(QMainWindow):
                 image_files = PhotoClassifier.scan_directory(self.current_folder)
                 image_files = list(dict.fromkeys(image_files))  # 去重保序
         except Exception as e:
-            QMessageBox.critical(self, "扫描出错", f"扫描目录时出错: {mask_path(str(e))}")
+            QMessageBox.critical(self, "扫描出错", f"扫描目录时出错: {str(e)}")
             return
 
         if not image_files:
@@ -1062,7 +1062,7 @@ class DesktopApp(QMainWindow):
     def _on_scan_error(self, error_msg: str):
         """扫描出错回调"""
         self._reset_scan_ui()
-        QMessageBox.critical(self, "扫描出错", f"扫描过程中出错:\n{mask_path(error_msg)}")
+        QMessageBox.critical(self, "扫描出错", f"扫描过程中出错:\n{error_msg}")
         self.status_bar.showMessage("扫描出错，请检查文件或重试")
 
     def _reset_scan_ui(self):
@@ -1252,7 +1252,7 @@ class DesktopApp(QMainWindow):
             else:
                 subprocess.Popen(["xdg-open", os.path.dirname(path)])
         except Exception as e:
-            QMessageBox.warning(self, "提示", f"无法打开文件位置: {mask_path(str(e))}")
+            QMessageBox.warning(self, "提示", f"无法打开文件位置: {str(e)}")
 
     def _copy_path_to_clipboard(self, path: str):
         """复制文件路径到剪贴板"""
@@ -1297,7 +1297,7 @@ class DesktopApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(
                     self, "移动失败",
-                    f"移动文件时出错:\n{mask_path(str(e))}"
+                    f"移动文件时出错:\n{str(e)}"
                 )
 
     # --------------------------------------------------------
@@ -1358,7 +1358,7 @@ class DesktopApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(
                     self, "移动失败",
-                    f"移动废片时出错:\n{mask_path(str(e))}"
+                    f"移动废片时出错:\n{str(e)}"
                 )
 
     # --------------------------------------------------------

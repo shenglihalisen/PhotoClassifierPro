@@ -29,7 +29,7 @@ def main():
     print("  按 Ctrl+C 停止服务")
     print("=" * 50)
 
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
 
 
 if __name__ == "__main__":

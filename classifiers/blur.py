@@ -121,27 +121,13 @@ class BlurDetector(BaseDetector):
         return float(np.mean(gradient_magnitude))
 
     def _normalize_laplacian_score(self, laplacian_var: float) -> float:
-        """
-        将拉普拉斯方差归一化为模糊置信度 (0.0 ~ 1.0)
-
-        方差越低，置信度越高（越模糊）
-        """
         if laplacian_var >= self.LAPLACIAN_THRESHOLD:
-            # 高于阈值，线性衰减
-            score = max(0.0, 1.0 - (laplacian_var - self.LAPLACIAN_THRESHOLD) / self.LAPLACIAN_THRESHOLD)
-            return score * 0.5  # 高于阈值时最多给 0.5
+            return max(0.0, 0.5 - 0.5 * (laplacian_var - self.LAPLACIAN_THRESHOLD) / self.LAPLACIAN_THRESHOLD)
         else:
-            # 低于阈值，线性增长
-            return min(1.0, 1.0 - laplacian_var / self.LAPLACIAN_THRESHOLD)
+            return 1.0 - 0.5 * laplacian_var / self.LAPLACIAN_THRESHOLD
 
     def _normalize_sobel_score(self, sobel_score: float) -> float:
-        """
-        将 Sobel 边缘均值归一化为模糊置信度 (0.0 ~ 1.0)
-
-        边缘强度越低，置信度越高（越模糊）
-        """
         if sobel_score >= self.SOBEL_THRESHOLD:
-            score = max(0.0, 1.0 - (sobel_score - self.SOBEL_THRESHOLD) / self.SOBEL_THRESHOLD)
-            return score * 0.5
+            return max(0.0, 0.5 - 0.5 * (sobel_score - self.SOBEL_THRESHOLD) / self.SOBEL_THRESHOLD)
         else:
-            return min(1.0, 1.0 - sobel_score / self.SOBEL_THRESHOLD)
+            return 1.0 - 0.5 * sobel_score / self.SOBEL_THRESHOLD

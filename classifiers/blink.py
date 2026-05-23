@@ -7,6 +7,7 @@
 
 import cv2
 import numpy as np
+import threading
 
 from .base import BaseDetector, DetectionResult, DefectType
 
@@ -33,12 +34,15 @@ class BlinkDetector(BaseDetector):
 
     def __init__(self):
         self._face_cascade = None
+        self._cascade_lock = threading.Lock()
 
     def _get_face_cascade(self):
         if self._face_cascade is None:
-            self._face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-            )
+            with self._cascade_lock:
+                if self._face_cascade is None:
+                    self._face_cascade = cv2.CascadeClassifier(
+                        cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+                    )
         return self._face_cascade
 
     @property
@@ -117,7 +121,7 @@ class BlinkDetector(BaseDetector):
 
             if blink_faces:
                 confidence = min(1.0, (self.EDGE_DENSITY_THRESHOLD - overall_min_density)
-                                 / self.EDGE_DENSITY_THRESHOLD + 0.5)
+                                 / self.EDGE_DENSITY_THRESHOLD)
                 return DetectionResult(
                     is_defective=True,
                     defect_type=self.defect_type,

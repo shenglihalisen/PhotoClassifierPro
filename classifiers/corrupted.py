@@ -103,8 +103,6 @@ class CorruptedDetector(BaseDetector):
             b'II*\x00': "TIFF (小端)",
             b'MM\x00*': "TIFF (大端)",
             b'RIFF': "WebP",
-            b'\x00\x00\x00\x1cftypheic': "HEIC",
-            b'\x00\x00\x00\x20ftypisom': "HEIF",
         }
 
         try:
@@ -117,6 +115,12 @@ class CorruptedDetector(BaseDetector):
             for sig, fmt in signatures.items():
                 if header.startswith(sig):
                     return {"valid": True, "reason": f"识别为{fmt}格式"}
+
+            # HEIC/HEIF: 基于 ftyp box 验证（box 大小可变，不能靠固定偏移）
+            if len(header) >= 12 and header[4:8] == b'ftyp' and header[8:12] in (
+                b'mif1', b'msf1', b'heic', b'heix'
+            ):
+                return {"valid": True, "reason": "识别为HEIC/HEIF格式"}
 
             return {"valid": False, "reason": "未知文件格式"}
         except IOError as e:

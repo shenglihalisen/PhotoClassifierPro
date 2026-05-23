@@ -70,8 +70,7 @@ from engine.classifier import PhotoClassifier
 MAX_FILE_SIZE = 50 * 1024 * 1024        # 单文件 50MB
 MAX_TOTAL_SIZE = 200 * 1024 * 1024      # 总上传 200MB
 
-# 允许的图片扩展名
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'}
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.heif'}
 
 # 文件头魔数映射（扩展名 -> 魔数字节）
 FILE_MAGIC_NUMBERS = {
@@ -81,8 +80,10 @@ FILE_MAGIC_NUMBERS = {
     '.gif':  (b'GIF87a', b'GIF89a'),
     '.bmp':  (b'BM',),
     '.webp': (b'RIFF',),       # WebP 以 RIFF 开头，后跟 4 字节长度 + WEBP
-    '.tiff': (b'II\x2a\x00', b'MM\x00\x2a'),  # Little/Big endian TIFF
+    '.tiff': (b'II\x2a\x00', b'MM\x00\x2a'),
     '.tif':  (b'II\x2a\x00', b'MM\x00\x2a'),
+    '.heic': (),  # 无固定前缀，在 validate_file_magic 中按 ftyp box 验证
+    '.heif': (),
 }
 
 # 需要保护的系统敏感路径（禁止访问）
@@ -107,6 +108,9 @@ DELETE_TOKEN_EXPIRE = 300  # 5 分钟
 TEMP_CLEANUP_INTERVAL = 3600  # 1 小时
 # 临时文件最大保留时间（秒）
 TEMP_FILE_MAX_AGE = 86400  # 24 小时
+
+# 缩略图缓存最大条目数
+THUMBNAIL_CACHE_MAX = 5000
 
 
 # ============================================================
@@ -140,33 +144,29 @@ def sanitize_filename(filename: str) -> str:
 
 
 def validate_file_magic(file_path: str, extension: str) -> bool:
-    """
-    通过文件头魔数验证文件类型，防止扩展名伪造
-
-    参数:
-        file_path: 文件路径
-        extension: 文件扩展名（含点号，如 '.jpg'）
-
-    返回:
-        True 表示文件头匹配，False 表示不匹配
-    """
     extension = extension.lower()
     magic_list = FILE_MAGIC_NUMBERS.get(extension)
-    if not magic_list:
+    if magic_list is None:
         return False
 
     try:
         with open(file_path, 'rb') as f:
-            header = f.read(16)  # 读取前 16 字节用于判断
+            header = f.read(16)
 
         for magic in magic_list:
-            if header.startswith(magic):
-                # WebP 需要额外验证：RIFF + 4字节长度 + WEBP
-                if extension == '.webp' and len(header) >= 12:
-                    if header[8:12] == b'WEBP':
+            if magic:
+                if header.startswith(magic):
+                    if extension == '.webp' and len(header) >= 12:
+                        if header[8:12] == b'WEBP':
+                            return True
+                    else:
                         return True
-                else:
-                    return True
+
+        # HEIC/HEIF: 基于 ftyp box 验证（无固定前缀）
+        if extension in ('.heic', '.heif') and len(header) >= 12:
+            if header[4:8] == b'ftyp' and header[8:12] in (b'mif1', b'msf1', b'heic', b'heix'):
+                return True
+
         return False
     except (OSError, IOError):
         return False
@@ -227,52 +227,33 @@ def sanitize_error_message(error: Exception) -> str:
 
 
 def generate_csrf_token() -> str:
-    """
-    生成 CSRF Token
-
-    返回:
-        CSRF Token 字符串
-    """
-    session_id = getattr(g, 'csrf_session_id', None)
-    if session_id is None:
-        session_id = uuid.uuid4().hex
-        g.csrf_session_id = session_id
+    client_ip = request.remote_addr or 'unknown'
     timestamp = str(int(time.time()))
-    raw = f"{session_id}:{timestamp}"
+    raw = f"{client_ip}:{timestamp}"
     signature = hmac.new(
         CSRF_SECRET_KEY.encode('utf-8'),
         raw.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
-    return f"{session_id}:{timestamp}:{signature}"
+    return f"{timestamp}:{signature}"
 
 
 def validate_csrf_token(token: str) -> bool:
-    """
-    验证 CSRF Token 是否有效
-
-    参数:
-        token: 待验证的 CSRF Token
-
-    返回:
-        True 表示 Token 有效
-    """
     if not token:
         return False
-
     try:
         parts = token.split(':')
-        if len(parts) != 3:
+        if len(parts) != 2:
             return False
-        session_id, timestamp_str, signature = parts
+        timestamp_str, signature = parts
         timestamp = int(timestamp_str)
 
-        # 检查 Token 是否过期（24小时有效期）
-        if abs(time.time() - timestamp) > 86400:
+        # 1 小时有效期
+        if abs(time.time() - timestamp) > 3600:
             return False
 
-        # 重新计算签名进行验证
-        raw = f"{session_id}:{timestamp_str}"
+        client_ip = request.remote_addr or 'unknown'
+        raw = f"{client_ip}:{timestamp_str}"
         expected = hmac.new(
             CSRF_SECRET_KEY.encode('utf-8'),
             raw.encode('utf-8'),
@@ -495,7 +476,7 @@ def create_app() -> Flask:
     # 全局分类器实例
     classifier = PhotoClassifier()
 
-    # 扫描状态
+    # 扫描状态（线程安全）
     scan_state = {
         "is_scanning": False,
         "progress": 0,
@@ -503,11 +484,14 @@ def create_app() -> Flask:
         "current_file": "",
         "results": {},
         "error": None,
-        "temp_dir": None,  # 存储上传文件的临时目录
+        "temp_dir": None,
     }
+    scan_state_lock = threading.Lock()
 
     # 缩略图缓存 {path: base64_string}
-    thumbnail_cache = {}
+    thumbnail_cache: dict[str, str] = {}
+    thumbnail_cache_order: list[str] = []
+    thumbnail_cache_lock = threading.Lock()
 
     # 启动临时文件清理器
     temp_cleaner.start()
@@ -601,18 +585,9 @@ def create_app() -> Flask:
     # ========================================================
 
     def generate_thumbnail(image_path: str, max_size: int = 200) -> str | None:
-        """
-        生成图片缩略图的 base64 编码
-
-        参数:
-            image_path: 图片路径
-            max_size: 缩略图最大尺寸
-
-        返回:
-            base64 编码的缩略图字符串，失败返回 None
-        """
-        if image_path in thumbnail_cache:
-            return thumbnail_cache[image_path]
+        with thumbnail_cache_lock:
+            if image_path in thumbnail_cache:
+                return thumbnail_cache[image_path]
 
         try:
             from PIL import Image
@@ -621,7 +596,6 @@ def create_app() -> Flask:
             img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
             buffer = BytesIO()
-            # 根据格式保存
             ext = os.path.splitext(image_path)[1].lower()
             if ext in ('.jpg', '.jpeg'):
                 fmt = 'JPEG'
@@ -637,7 +611,12 @@ def create_app() -> Flask:
             mime = 'image/jpeg' if fmt == 'JPEG' else f'image/{fmt.lower()}'
             result = f"data:{mime};base64,{b64}"
 
-            thumbnail_cache[image_path] = result
+            with thumbnail_cache_lock:
+                if len(thumbnail_cache) >= THUMBNAIL_CACHE_MAX:
+                    oldest = thumbnail_cache_order.pop(0)
+                    thumbnail_cache.pop(oldest, None)
+                thumbnail_cache[image_path] = result
+                thumbnail_cache_order.append(image_path)
             return result
         except Exception:
             return None
@@ -817,33 +796,29 @@ def create_app() -> Flask:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             return jsonify({"error": "未找到图片文件"}), 400
 
-        # 重置状态
-        scan_state["is_scanning"] = True
-        scan_state["progress"] = 0
-        scan_state["total"] = len(image_files)
-        scan_state["current_file"] = ""
-        scan_state["results"] = {}
-        scan_state["error"] = None
-        scan_state["temp_dir"] = temp_dir
-        thumbnail_cache.clear()
+        with thumbnail_cache_lock:
+            thumbnail_cache.clear()
+            thumbnail_cache_order.clear()
 
         def run_scan():
-            """在后台线程中执行扫描"""
             try:
                 def progress_callback(current, total, path):
-                    scan_state["progress"] = current
-                    scan_state["total"] = total
-                    scan_state["current_file"] = os.path.basename(path)
+                    with scan_state_lock:
+                        scan_state["progress"] = current
+                        scan_state["total"] = total
+                        scan_state["current_file"] = os.path.basename(path)
 
                 results = classifier.classify_batch(image_files, progress_callback)
-                scan_state["results"] = results
+                with scan_state_lock:
+                    scan_state["results"] = results
             except Exception as e:
-                # 错误信息脱敏后存储
-                scan_state["error"] = sanitize_error_message(e)
+                with scan_state_lock:
+                    scan_state["error"] = sanitize_error_message(e)
                 logger.error("扫描过程出错: %s", sanitize_error_message(e))
             finally:
-                scan_state["is_scanning"] = False
-                scan_state["current_file"] = ""
+                with scan_state_lock:
+                    scan_state["is_scanning"] = False
+                    scan_state["current_file"] = ""
 
         # 启动后台扫描线程
         thread = threading.Thread(target=run_scan, daemon=True)
@@ -860,25 +835,31 @@ def create_app() -> Flask:
 
     @app.route("/api/status", methods=["GET"])
     def status():
-        """获取扫描进度"""
+        with scan_state_lock:
+            is_scanning = scan_state["is_scanning"]
+            progress = scan_state["progress"]
+            total = scan_state["total"]
+            current_file = scan_state["current_file"]
+            error = scan_state["error"]
+            results = scan_state["results"]
+
         response = {
-            "is_scanning": scan_state["is_scanning"],
-            "progress": scan_state["progress"],
-            "total": scan_state["total"],
-            "current_file": scan_state["current_file"],
-            "error": scan_state["error"],
+            "is_scanning": is_scanning,
+            "progress": progress,
+            "total": total,
+            "current_file": current_file,
+            "error": error,
         }
 
-        if not scan_state["is_scanning"] and scan_state["results"]:
+        if not is_scanning and results:
             # 扫描完成，返回分类汇总
             normal_photos = []
             defective_photos = {}
 
-            for path, results in scan_state["results"].items():
-                defects = [r for r in results if r.is_defective]
+            for path, path_results in results.items():
+                defects = [r for r in path_results if r.is_defective]
 
                 if defects:
-                    # 按缺陷类型分组
                     for defect in defects:
                         dtype = defect.defect_type.value if defect.defect_type else "unknown"
                         if dtype not in defective_photos:
