@@ -32,7 +32,7 @@ import (
 )
 
 // 版本号：与 CHANGELOG 对应。
-const version = "v3.0.0-go"
+const version = "v3.1.0-go"
 
 func main() {
 	var (
@@ -47,6 +47,7 @@ func main() {
 		port      = flag.Int("port", 8080, "Web 界面端口")
 		bindAddr  = flag.String("addr", "127.0.0.1", "监听地址。0.0.0.0 允许局域网访问（无认证，慎用）")
 		noBrowser = flag.Bool("no-browser", false, "启动 Web 服务后不自动打开浏览器")
+		noGui     = flag.Bool("no-gui", false, "不开原生窗口，改用默认浏览器")
 		showVer   = flag.Bool("version", false, "打印版本号")
 	)
 	flag.Usage = usage
@@ -68,10 +69,17 @@ func main() {
 		os.Exit(runScan(*scanDir, *jsonOut, *csvOut, *doMove, *doCopy, *recursive, *withFace, *workers))
 	}
 
-	// 默认：Web 界面
+	// 默认：原生窗口（Windows + WebView2）。没有运行时或用户指定 -no-gui 时回退浏览器。
+	if !*noGui {
+		if err := runGUI("PhotoClassifierPro", version, *port); err == nil {
+			return
+		} else {
+			fmt.Fprintf(os.Stderr, "原生窗口不可用（%v），改用浏览器。\n", err)
+		}
+	}
 	if err := web.Serve(web.Config{
-		Addr:      fmt.Sprintf("%s:%d", *bindAddr, *port),
-		Version:   version,
+		Addr:        fmt.Sprintf("%s:%d", *bindAddr, *port),
+		Version:     version,
 		OpenBrowser: !*noBrowser,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "启动失败: %v\n", err)
@@ -83,7 +91,8 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `PhotoClassifierPro %s —— 照片质量批量筛片
 
 用法:
-  PhotoClassifierPro.exe                        启动浏览器界面（默认）
+  PhotoClassifierPro.exe                        启动原生窗口（默认）
+  PhotoClassifierPro.exe -no-gui               改用浏览器界面
   PhotoClassifierPro.exe -scan <目录>            命令行扫描并打印报告
   PhotoClassifierPro.exe -scan <目录> -move      扫描并把废片移到 _待整理/
   PhotoClassifierPro.exe -scan <目录> -csv r.csv 结果写成 CSV

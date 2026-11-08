@@ -38,6 +38,8 @@ type Config struct {
 	Addr        string
 	Version     string
 	OpenBrowser bool
+	// Quiet 不打印启动信息（GUI 模式没有控制台）。
+	Quiet bool
 }
 
 // state 当前会话状态。单用户本地工具，一个进程只服务一个扫描根。
@@ -52,8 +54,20 @@ type state struct {
 
 var st = &state{th: qc.DefaultThresholds()}
 
-// Serve 启动 HTTP 服务（阻塞）。
+// Serve 启动 HTTP 服务（阻塞）。自己监听 cfg.Addr。
 func Serve(cfg Config) error {
+	ln, err := net.Listen("tcp", cfg.Addr)
+	if err != nil {
+		return fmt.Errorf("端口被占用或无法监听 %s: %w", cfg.Addr, err)
+	}
+	return ServeListener(ln, cfg)
+}
+
+// ServeListener 在已就绪的 listener 上提供服务（阻塞）。
+//
+// 单独拆出来是给 GUI 用的：窗口模式希望先拿到真实端口（:0 随机分配），
+// 再把地址交给 WebView 导航，避免和别的进程抢 8080。
+func ServeListener(ln net.Listener, cfg Config) error {
 	sub, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		return err
@@ -70,12 +84,10 @@ func Serve(cfg Config) error {
 		writeJSON(w, map[string]any{"version": cfg.Version, "face": qc.DefaultThresholds().BlinkEdge})
 	})
 
-	ln, err := net.Listen("tcp", cfg.Addr)
-	if err != nil {
-		return fmt.Errorf("端口被占用或无法监听 %s: %w", cfg.Addr, err)
+	url := "http://" + ln.Addr().String()
+	if !cfg.Quiet {
+		fmt.Printf("PhotoClassifierPro %s\n界面地址: %s\n按 Ctrl+C 退出\n", cfg.Version, url)
 	}
-	url := "http://" + cfg.Addr
-	fmt.Printf("PhotoClassifierPro %s\n界面地址: %s\n按 Ctrl+C 退出\n", cfg.Version, url)
 	if cfg.OpenBrowser {
 		go func() {
 			time.Sleep(300 * time.Millisecond)

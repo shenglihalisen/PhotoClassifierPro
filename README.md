@@ -8,7 +8,7 @@
 
 照片质量批量筛片工具。**一个 exe，零依赖**——不需要 Python、不需要 OpenCV、不需要 ffmpeg。
 
-双击打开浏览器界面，选一个目录，它会把损坏、空镜、模糊、噪点、曝光异常、镜头脏污、重复、闭眼这八类问题挑出来，标上徽章给你看，**绝不改动或删除你的照片**。
+双击就是一个**原生窗口**（WebView2，不是浏览器标签页），选一个目录，它会把损坏、空镜、模糊、噪点、曝光异常、镜头脏污、重复、闭眼这八类问题挑出来，标上徽章给你看，**绝不改动或删除你的照片**。
 
 检测算法与阈值来自 [medreview](https://github.com/shenglihalisen/medreview) 的 QC v5，那套数值是在真实素材上校准过的。
 
@@ -52,7 +52,9 @@
 
 ### 用发行版
 
-下载 `PhotoClassifierPro.exe`，双击。浏览器会自动打开 `http://127.0.0.1:8080`。
+下载 `PhotoClassifierPro.exe`，双击 —— 直接开一个原生窗口，没有黑窗、没有浏览器标签页。
+
+窗口内置的是本地服务页面（`127.0.0.1` 随机端口，只在本机可达）。想要浏览器标签页的用 `-no-gui`。
 
 ### 从源码构建
 
@@ -73,12 +75,13 @@ go build -trimpath -ldflags "-s -w" -o photo-classifier .
 
 ## 4. 三种用法
 
-**浏览器界面（默认）**
+**原生窗口（默认）**
 
 ```bash
-PhotoClassifierPro.exe                 # 自动开浏览器
-PhotoClassifierPro.exe -port 9000      # 换端口
-PhotoClassifierPro.exe -no-browser     # 不开浏览器
+PhotoClassifierPro.exe                 # 直接开窗口
+PhotoClassifierPro.exe -port 9000      # 指定端口（被占用会自动换一个）
+PhotoClassifierPro.exe -no-gui         # 改用默认浏览器
+PhotoClassifierPro.exe -no-gui -no-browser   # 只起服务，不开任何界面
 ```
 
 **命令行扫描**
@@ -125,7 +128,7 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # 关掉闭眼检测（更�
 | 阈值 | 硬编码 | 可运行时调 + 范围钳制 |
 | 闭眼 | MediaPipe 关键点 / Haar+Canny | 纯 Go Haar + Sobel 边缘密度 |
 | 重复 | 无 | pHash + 像素二次确认 |
-| 界面 | PyQt5 + Flask 两套 | 一套浏览器界面，CLI 共用内核 |
+| 界面 | PyQt5 + Flask 两套 | 一套网页界面：原生窗口（WebView2）或浏览器，CLI 共用内核 |
 | 性能 | 单线程 | 并发解码（默认 ≤8 路） |
 
 ## 7. 隐私与安全
@@ -142,12 +145,15 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # 关掉闭眼检测（更�
 - 闭眼阈值（0.10）需要在你的真实素材上再校准一次。合成素材只能验证方向。
 - 重复检测只在同一次扫描内生效，不跨目录做全库去重。
 - 界面是单用户的：同一时间只服务一个扫描任务。
+- 原生窗口需要 **WebView2 运行时**（Win10/11 随 Edge 预装，Win7/8 需自己装）。没有时会自动回退到浏览器，不会闪退。
 
 ## 9. 项目结构
 
 ```
 PhotoClassifierPro/
-├── main.go              入口（Web / CLI）
+├── main.go              入口（窗口 / 浏览器 / CLI）
+├── gui_windows.go       WebView2 原生窗口（纯 Go，无 cgo）
+├── gui_other.go         非 Windows 平台回退
 ├── qc/                  检测算法（与 medreview QC v5 同源）
 │   ├── qc.go            七个图像检测器
 │   ├── decode.go        纯 Go 解码 + EXIF 转正 + 双尺度灰度
@@ -177,7 +183,7 @@ MIT License。
 
 Photo triage tool. **One exe, zero dependencies** — no Python, no OpenCV, no ffmpeg.
 
-Double-click, pick a folder, and it flags eight kinds of problems: corrupted, blank, blurry, noisy, badly exposed, lens-dirt, duplicates, and closed eyes. It **never modifies or deletes your photos**.
+A **native window** (WebView2 — not a browser tab) opens on double-click. Pick a folder and it flags eight kinds of problems: corrupted, blank, blurry, noisy, badly exposed, lens-dirt, duplicates, and closed eyes. It **never modifies or deletes your photos**.
 
 The detectors and thresholds come from [medreview](https://github.com/shenglihalisen/medreview)'s QC v5, calibrated on real material.
 
@@ -204,7 +210,12 @@ cd PhotoClassifierPro
 go build -trimpath -ldflags "-s -w -H=windowsgui" -o PhotoClassifierPro.exe .
 ```
 
-Run without arguments to get the browser UI at `http://127.0.0.1:8080`.
+Run without arguments to get the native window. No WebView2 runtime? It falls back to your default browser automatically.
+
+```bash
+PhotoClassifierPro.exe -no-gui         # browser tab instead of a native window
+PhotoClassifierPro.exe -port 9000      # fixed port (falls back to a random one if busy)
+```
 
 ```bash
 PhotoClassifierPro.exe -scan D:/photos              # report
@@ -231,7 +242,7 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # skip the blink detector
 | Thresholds | hard-coded | runtime-adjustable with clamping |
 | Blink | MediaPipe landmarks / Haar+Canny | pure-Go Haar + Sobel edge density |
 | Duplicates | none | pHash + pixel double-check |
-| UI | PyQt5 + Flask | one browser UI, CLI shares the same core |
+| UI | PyQt5 + Flask | one web UI: native window (WebView2) or browser; CLI shares the same core |
 | Concurrency | single-threaded | parallel decode (≤8 workers) |
 
 ## 5. Known limitations
@@ -241,6 +252,7 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # skip the blink detector
 - The blink threshold (0.10) still wants calibration on your own material — synthetic images can only validate direction.
 - Duplicate detection is per-scan, not a global library dedupe.
 - The UI is single-user: one scan at a time.
+- The native window needs the **WebView2 runtime** (preinstalled on Win10/11 with Edge). Missing runtime falls back to the browser instead of failing.
 
 ## 6. License
 
