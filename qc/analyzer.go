@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -18,6 +19,10 @@ import (
 // 超过这个量级的多半是拼接全景图或误改扩展名的文件，解码会吃掉数百 MB 内存，
 // 对批量扫描是灾难。超限直接判「跳过」而不是判损坏。
 const MaxPixels = 150_000_000
+
+// MaxFileBytes 单文件上限（256MB）。误把视频/压缩包改名成 .jpg 时不该把整份
+// 文件读进内存；一张正常照片远小于这个数。
+const MaxFileBytes = 256 << 20
 
 // FaceDetector 闭眼检测器接口。
 //
@@ -78,20 +83,44 @@ func (a *Analyzer) FaceAvailable() bool {
 
 // AnalyzeFile 检测单个文件。任何失败都会返回一个带 FlagCorrupted 的结果，
 // 而不是 nil —— 上层永远不用处理 nil，也永远不会把「没测成」误当成「没问题」。
+//
+// 只读一次盘：早先为了先拿尺寸读一次 512KB、解码又读一次全文件，
+// 扫几千张照片就是几千次多余 I/O。现在一次 ReadFile，头部校验和解码都从
+// 同一份内存数据走。
 func (a *Analyzer) AnalyzeFile(path string) *Result {
-	// 先只读头部拿尺寸：超大图在解码前就拦下，不浪费内存
-	if cfg, _, err := image.DecodeConfig(bytes.NewReader(mustHead(path, 512*1024))); err == nil {
+	info, err := os.Stat(path)
+	if err != nil {
+		return &Result{Flags: FlagCorrupted, Corrupted: true, Error: err.Error()}
+	}
+	if info.Size() > MaxFileBytes {
+		return &Result{
+			Flags:     FlagCorrupted,
+			Corrupted: true,
+			Error:     fmt.Sprintf("文件 %d MB 超过上限 %d MB，已跳过", info.Size()>>20, MaxFileBytes>>20),
+		}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return &Result{Flags: FlagCorrupted, Corrupted: true, Error: err.Error()}
+	}
+	if cfg, _, err := image.DecodeConfig(bytes.NewReader(data)); err == nil {
 		if cfg.Width*cfg.Height > MaxPixels {
 			return &Result{
-				Flags:   FlagCorrupted,
-				Width:   cfg.Width,
-				Height:  cfg.Height,
-				Error:   fmt.Sprintf("像素数 %d 超过上限 %d，已跳过", cfg.Width*cfg.Height, MaxPixels),
+				Flags:     FlagCorrupted,
+				Width:     cfg.Width,
+				Height:    cfg.Height,
 				Corrupted: true,
+				Error:     fmt.Sprintf("像素数 %d 超过上限 %d，已跳过", cfg.Width*cfg.Height, MaxPixels),
 			}
 		}
 	}
-	img, err := DecodeFile(path)
+	var img image.Image
+	if IsExternalFormat(filepath.Ext(path)) {
+		// HEIC/RAW 要让外部命令读到真实文件，走文件路径那条路
+		img, err = DecodeFile(path)
+	} else {
+		img, err = DecodeBytes(data)
+	}
 	if err != nil {
 		return &Result{Flags: FlagCorrupted, Corrupted: true, Error: err.Error()}
 	}
@@ -204,16 +233,4 @@ func clamp01(v float64) float64 {
 		return 1
 	}
 	return v
-}
-
-// mustHead 读文件前 n 字节（只用于 DecodeConfig，失败返回空切片不影响主流程）。
-func mustHead(path string, n int64) []byte {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	buf := make([]byte, n)
-	m, _ := f.Read(buf)
-	return buf[:m]
 }

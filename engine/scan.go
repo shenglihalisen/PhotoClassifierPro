@@ -34,6 +34,10 @@ type Options struct {
 	Face bool
 	// Thresholds 判定阈值（零值表示用默认）。
 	Thresholds qc.Thresholds
+	// GlobalDup 是否启用跨扫描重复索引（默认关，需要显式开）。
+	GlobalDup bool
+	// IndexPath 索引文件路径；空则用 DefaultIndexPath()。
+	IndexPath string
 }
 
 // Item 一张照片的扫描结果。
@@ -73,10 +77,12 @@ type Progress struct {
 
 // Summary 扫描汇总。
 type Summary struct {
-	Total     int            `json:"total"`
-	Issues    int            `json:"issues"`
-	Failed    int            `json:"failed"`
-	Duplicate int            `json:"duplicate"`
+	Total     int `json:"total"`
+	Issues    int `json:"issues"`
+	Failed    int `json:"failed"`
+	Duplicate int `json:"duplicate"`
+	// Cross 跨目录重复候选数（仅开启全库去重时非 0）。
+	Cross     int            `json:"cross"`
 	ByLabel   map[string]int `json:"byLabel"`
 	ElapsedMS int64          `json:"elapsedMs"`
 }
@@ -188,14 +194,31 @@ func Scan(ctx context.Context, opt Options, onProgress func(Progress)) (*Result,
 	}
 
 	sum := buildSummary(out, dupGroups, start)
-	return &Result{Items: out, Groups: dupGroups, Summary: sum}, nil
+	res := &Result{Items: out, Groups: dupGroups, Summary: sum}
+
+	if opt.GlobalDup {
+		idxPath := opt.IndexPath
+		if idxPath == "" {
+			idxPath = DefaultIndexPath()
+		}
+		idx := LoadDupIndex(idxPath)
+		res.CrossDups = idx.MatchCross(out, opt.Root)
+		idx.Update(out, opt.Root)
+		// 索引写失败不该让扫描白跑：结果已经拿到了，下次再补写
+		_ = idx.Save(idxPath)
+		sum.Cross = len(res.CrossDups)
+		res.Summary = sum
+	}
+	return res, nil
 }
 
 // Result 扫描结果。
 type Result struct {
-	Items   []*Item      `json:"items"`
-	Groups  []*DupGroup  `json:"groups"`
-	Summary Summary      `json:"summary"`
+	Items  []*Item     `json:"items"`
+	Groups []*DupGroup `json:"groups"`
+	// CrossDups 与历史扫描目录重复的照片（候选，仅开启全库去重时有值）。
+	CrossDups []CrossDup `json:"crossDups,omitempty"`
+	Summary   Summary    `json:"summary"`
 }
 
 type fileEntry struct {

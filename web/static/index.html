@@ -67,6 +67,13 @@
   .btn.quiet{border-color:transparent;color:var(--muted)}
   .btn.quiet:hover{background:var(--surface-2);color:var(--ink)}
   .btn.sm{height:30px;padding:0 11px;font-size:12.5px}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+    cursor:pointer;white-space:nowrap;user-select:none}
+  .chk input{width:13px;height:13px;accent-color:var(--ink);cursor:pointer}
+  .chk:has(input:checked){color:var(--ink)}
+  .lang{width:30px;height:30px;border-radius:var(--r-sm);font-size:11px;font-weight:600;
+    color:var(--muted);display:grid;place-items:center}
+  .lang:hover{background:var(--surface-2);color:var(--ink)}
 
   /* ── 首屏 ── */
   main{max-width:1500px;margin:0 auto;padding:0 20px 72px}
@@ -105,6 +112,7 @@
   }
   .feats span{display:inline-flex;align-items:center;gap:6px}
   .feats svg{width:13px;height:13px;color:#a3a39a}
+  .feats i{font-style:normal}
   .detectors{margin:32px auto 0;max-width:760px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
   .detectors b{
     font-weight:500;font-size:12px;color:var(--ink-2);
@@ -307,6 +315,23 @@
   }
   .scrim.on{opacity:1;pointer-events:auto}
 
+  .login{position:fixed;inset:0;z-index:95;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+  .login.on{display:flex}
+  .login .box{width:min(380px,92vw);background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:28px;box-shadow:var(--shadow-2)}
+  .login h2{margin:14px 0 6px;font-size:17px;font-weight:650;letter-spacing:-.02em}
+  .login p{margin:0 0 18px;color:var(--muted);font-size:12.5px;line-height:1.6}
+  .login form{display:flex;gap:8px}
+  .login input{flex:1;min-width:0;height:36px;padding:0 11px;border:1px solid var(--line);
+    border-radius:var(--r-sm);outline:none;background:var(--surface);font-size:13px}
+  .login input:focus{border-color:#c9c9c1;box-shadow:0 0 0 3px rgba(27,27,24,.05)}
+  .login .btn{height:36px}
+  .login .err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+
+  .more{display:none;margin:26px auto 0;padding:9px 22px;border:1px solid var(--line);border-radius:99px;
+    background:var(--surface);color:var(--ink-2);font-size:12.5px;transition:.15s}
+  .more:hover{border-color:#d0d0c8;background:var(--surface-2)}
+
   .toast{
     position:fixed;left:50%;bottom:30px;transform:translate(-50%,12px);
     background:var(--ink);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:99px;
@@ -336,17 +361,21 @@
         <path d="M4 15l4-4 3 3 5-6 4 5"/><rect x="3" y="4" width="18" height="16" rx="3"/>
       </svg>
     </span>
-    PhotoClassifier<span class="ver" id="ver"></span>
+    PhotoClassifierPro<span class="ver" id="ver"></span>
   </div>
   <div class="grow"></div>
   <div class="path">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
     </svg>
-    <input type="text" id="root" placeholder="照片文件夹路径，例如 D:\photos" spellcheck="false" autocomplete="off">
+    <input type="text" id="root" data-i18n-ph="pathPh" placeholder="照片文件夹路径，例如 D:\photos" spellcheck="false" autocomplete="off">
   </div>
-  <button class="btn solid" id="scanBtn">开始扫描</button>
-  <button class="btn" id="stopBtn" style="display:none">停止</button>
+  <label class="chk" title="检查与其他目录的历史照片是否重复">
+    <input type="checkbox" id="globalDup"> <span data-i18n="globalDup">全库去重</span>
+  </label>
+  <button class="btn solid" id="scanBtn" data-i18n="scan">开始扫描</button>
+  <button class="btn" id="stopBtn" data-i18n="stop" style="display:none">停止</button>
+  <button class="lang" id="langBtn" title="中文 / English">EN</button>
   <button class="btn quiet" id="thBtn" title="检测阈值">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M3 8h8M16 8h5M3 16h5M13 16h8"/>
@@ -358,8 +387,8 @@
 
 <main>
   <section class="hero" id="hero">
-    <h1>把一整个相册倒进来</h1>
-    <p>八项检测逐张过一遍，废片自己浮出来</p>
+    <h1 data-i18n="heroTitle">把一整个相册倒进来</h1>
+    <p data-i18n="heroSub">八项检测逐张过一遍，废片自己浮出来</p>
 
     <div class="drop">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -367,22 +396,22 @@
         <path d="M14 14l1.586-1.586a2 2 0 012.828 0L20 14"/>
         <rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9" r="1.6"/>
       </svg>
-      <div class="hint">粘贴照片所在文件夹的完整路径</div>
+      <div class="hint" data-i18n="heroHint">粘贴照片所在文件夹的完整路径</div>
       <form id="heroForm">
-        <input type="text" id="root2" placeholder="C:\Users\me\Pictures" spellcheck="false" autocomplete="off">
-        <button class="btn solid" type="submit">扫描这个文件夹</button>
+        <input type="text" id="root2" data-i18n-ph="pathPh2" placeholder="C:\Users\me\Pictures" spellcheck="false" autocomplete="off">
+        <button class="btn solid" type="submit" data-i18n="heroBtn">扫描这个文件夹</button>
       </form>
     </div>
 
     <div class="feats">
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>单文件，零依赖</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>只读，不改不删</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>不联网、不上传</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>阈值可调</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><i data-i18n="f1">单文件，零依赖</i></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><i data-i18n="f2">只读，不改不删</i></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><i data-i18n="f3">不联网、不上传</i></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><i data-i18n="f4">阈值可调</i></span>
     </div>
 
     <div class="detectors">
-      <b>损坏</b><b>空镜</b><b>模糊</b><b>噪点</b><b>欠曝过曝</b><b>镜头脏污</b><b>重复</b><b>闭眼</b>
+      <b data-i18n="d1">损坏</b><b data-i18n="d2">空镜</b><b data-i18n="d3">模糊</b><b data-i18n="d4">噪点</b><b data-i18n="d5">欠曝过曝</b><b data-i18n="d6">镜头脏污</b><b data-i18n="d7">重复</b><b data-i18n="d8">闭眼</b>
     </div>
   </section>
 
@@ -391,26 +420,28 @@
     <div class="status" id="status"></div>
 
     <div class="bar">
-      <div class="stat"><div class="k">扫描总数</div><div class="v num" id="cTotal">0<span class="u">张</span></div></div>
-      <div class="stat bad"><div class="k">质量问题</div><div class="v num" id="cIssue">0<span class="u">张</span></div></div>
-      <div class="stat warn"><div class="k">重复</div><div class="v num" id="cDup">0<span class="u">张</span></div></div>
-      <div class="stat"><div class="k">损坏</div><div class="v num" id="cBad">0<span class="u">张</span></div></div>
-      <div class="stat ok"><div class="k">正常</div><div class="v num" id="cOk">0<span class="u">张</span></div></div>
+      <div class="stat"><div class="k" data-i18n="s_total">扫描总数</div><div class="v num" id="cTotal">0<span class="u">张</span></div></div>
+      <div class="stat bad"><div class="k" data-i18n="s_issue">质量问题</div><div class="v num" id="cIssue">0<span class="u">张</span></div></div>
+      <div class="stat warn"><div class="k" data-i18n="s_dup">重复</div><div class="v num" id="cDup">0<span class="u">张</span></div></div>
+      <div class="stat"><div class="k" data-i18n="s_bad">损坏</div><div class="v num" id="cBad">0<span class="u">张</span></div></div>
+      <div class="stat ok"><div class="k" data-i18n="s_ok">正常</div><div class="v num" id="cOk">0<span class="u">张</span></div></div>
+      <div class="stat" id="crossStat" style="display:none"><div class="k" data-i18n="cross">跨目录</div><div class="v num" id="cCross">0<span class="u">张</span></div></div>
     </div>
 
     <div class="toolbar">
       <div class="seg" id="tabs">
-        <button class="on" data-f="all">全部<span class="n" id="nAll">0</span></button>
-        <button data-f="issue">问题<span class="n" id="nIssue">0</span></button>
-        <button data-f="dup">重复<span class="n" id="nDup">0</span></button>
-        <button data-f="ok">正常<span class="n" id="nOk">0</span></button>
+        <button class="on" data-f="all"><span data-i18n="fAll">全部</span><span class="n" id="nAll">0</span></button>
+        <button data-f="issue"><span data-i18n="fIssue">问题</span><span class="n" id="nIssue">0</span></button>
+        <button data-f="dup"><span data-i18n="fDup">重复</span><span class="n" id="nDup">0</span></button>
+        <button data-f="ok"><span data-i18n="fOk">正常</span><span class="n" id="nOk">0</span></button>
       </div>
       <div class="grow"></div>
-      <button class="btn sm quiet" id="csvBtn">导出 CSV</button>
-      <button class="btn sm quiet" id="organizeBtn">归档废片…</button>
+      <button class="btn sm quiet" id="csvBtn" data-i18n="csv">导出 CSV</button>
+      <button class="btn sm quiet" id="organizeBtn" data-i18n="organize">归档废片…</button>
     </div>
 
     <div class="grid" id="grid"></div>
+    <div style="text-align:center"><button class="more" id="more" data-i18n="more">加载更多</button></div>
     <div class="empty" id="empty" style="display:none"></div>
   </section>
 </main>
@@ -433,15 +464,15 @@
     <aside class="side">
       <h3 id="pvName">—</h3>
       <div class="sub" id="pvSub"></div>
-      <div class="lbl">检出</div>
+      <div class="lbl" data-i18n="detTitle">检出</div>
       <div id="pvIssues"></div>
-      <div class="lbl">指标</div>
+      <div class="lbl" data-i18n="metricsTitle">指标</div>
       <div id="pvMetrics"></div>
       <div class="foot">
-        <span><span class="kbd">←</span><span class="kbd">→</span>切换</span>
-        <span><span class="kbd">+</span><span class="kbd">−</span>缩放</span>
-        <span><span class="kbd">0</span>适应窗口</span>
-        <span><span class="kbd">Esc</span>关闭</span>
+        <span><span class="kbd">←</span><span class="kbd">→</span><i data-i18n="kSwitch" style="font-style:normal">切换</i></span>
+        <span><span class="kbd">+</span><span class="kbd">−</span><i data-i18n="kZoom" style="font-style:normal">缩放</i></span>
+        <span><span class="kbd">0</span><i data-i18n="kFit" style="font-style:normal">适应窗口</i></span>
+        <span><span class="kbd">Esc</span><i data-i18n="kClose" style="font-style:normal">关闭</i></span>
       </div>
     </aside>
   </div>
@@ -449,20 +480,135 @@
 
 <div class="scrim" id="scrim"></div>
 <div class="drawer" id="drawer">
-  <div class="hd"><b>检测阈值</b><span class="s">改完重新扫描生效</span><div class="grow"></div><button class="btn sm quiet" id="thClose">关闭</button></div>
+  <div class="hd"><b data-i18n="thTitle">检测阈值</b><span class="s" data-i18n="thSub">改完重新扫描生效</span><div class="grow"></div><button class="btn sm quiet" id="thClose" data-i18n="close">关闭</button></div>
   <div class="bd" id="thBody"></div>
   <div class="ft">
-    <button class="btn" id="thReset">恢复默认</button>
+    <button class="btn" id="thReset" data-i18n="reset">恢复默认</button>
     <div class="grow"></div>
-    <button class="btn solid" id="thSave">应用</button>
+    <button class="btn solid" id="thSave" data-i18n="apply">应用</button>
+  </div>
+</div>
+
+<div class="login" id="login">
+  <div class="box">
+    <span class="mark" style="width:30px;height:30px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 15l4-4 3 3 5-6 4 5"/><rect x="3" y="4" width="18" height="16" rx="3"/>
+      </svg>
+    </span>
+    <h2 data-i18n="loginTitle">需要口令</h2>
+    <p data-i18n="loginSub">这个服务监听在局域网地址上，访问前要验证口令。口令在启动日志里（也可用 PCP_PASS 指定）。</p>
+    <form id="loginForm">
+      <input type="password" id="passInput" data-i18n-ph="loginPh" placeholder="输入口令" autocomplete="current-password" spellcheck="false">
+      <button class="btn solid" type="submit" data-i18n="loginBtn">进入</button>
+    </form>
+    <div class="err" id="loginErr"></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+const I18N = {
+  zh: {
+    pathPh:'照片文件夹路径，例如 D 盘 photos', pathPh2:'D 盘 photos',
+    scan:'开始扫描', stop:'停止', globalDup:'全库去重', cross:'跨目录',
+    heroTitle:'把一整个相册倒进来', heroSub:'八项检测逐张过一遍，废片自己浮出来',
+    heroHint:'粘贴照片所在文件夹的完整路径', heroBtn:'扫描这个文件夹',
+    f1:'单文件，零依赖', f2:'只读，不改不删', f3:'不联网、不上传', f4:'阈值可调',
+    d1:'损坏', d2:'空镜', d3:'模糊', d4:'噪点', d5:'欠曝过曝', d6:'镜头脏污', d7:'重复', d8:'闭眼',
+    s_total:'扫描总数', s_issue:'质量问题', s_dup:'重复', s_bad:'损坏', s_ok:'正常',
+    fAll:'全部', fIssue:'问题', fDup:'重复', fOk:'正常', csv:'导出 CSV', organize:'归档废片…',
+    more:'加载更多', detTitle:'检出', metricsTitle:'指标',
+    kSwitch:'上一张 / 下一张', kZoom:'缩放 ·', kFit:'适应窗口', kClose:'关闭预览',
+    thTitle:'检测阈值', thSub:'改完重新扫描生效', close:'关闭', reset:'恢复默认', apply:'应用',
+    loginTitle:'需要口令', loginSub:'这个服务监听在局域网地址上，访问前要验证口令。口令在启动日志里（也可用 PCP_PASS 指定）。',
+    loginPh:'输入口令', loginBtn:'进入',
+    unit:'张', needPath:'先填一个照片文件夹路径', collecting:'正在收集文件…',
+    found:'已发现 %d 个问题', scanDone:'扫描完成 · %d 张 · 用时 %ss',
+    scanFailed:'扫描中断', connLost:'连接中断，请重试', stopped:'已停止',
+    moreN:'加载更多（还有 %d 张）', emptyTitle:'没有符合条件的照片', emptySub:'换个筛选条件看看',
+    orgFail:'归档失败：', orgDone:'已归档 %d 个文件到 _待整理/',
+    orgDone2:'归档完成 %d/%d · 重新扫描可查看结果',
+    thSaved:'阈值已应用（版本 %d），重新扫描后生效', loginErr:'口令不对，再试一次',
+    crossFound:'发现 %d 张跨目录重复候选，详见 CSV 导出',
+    noIssue:'未发现质量问题',
+    L损坏:'损坏', L模糊:'模糊', L空镜:'空镜', L噪点:'噪点', L欠曝:'欠曝', L过曝:'过曝',
+    L脏污:'脏污', L闭眼:'闭眼', L重复:'重复', L正常:'正常',
+    mMean:'亮度均值', mBlack:'死黑占比', mWhite:'死白占比', mLap:'拉普拉斯标准差',
+    mNoise:'噪声底线', mFaces:'人脸 / 闭眼', mEdge:'眼部最小边缘密度',
+    vLap:'拉普拉斯 ', vNoise:'噪声 ', vStd:'标准差 ', vBlack:'% 死黑', vWhite:'% 死白', vGroup:'组 ',
+    th_blurLapStd:['模糊','拉普拉斯标准差低于此值判模糊','调大 → 更严'],
+    th_noiseFloor:['噪点','平坦区噪声底线高于此值判噪点','调小 → 更严'],
+    th_expUnder:['欠曝','平均亮度低于此值且死黑占比 >35% 判欠曝','调大 → 更严'],
+    th_expOver:['过曝','平均亮度高于此值且死白占比 >80% 判过曝','调小 → 更严'],
+    th_blankStd:['空镜','全局灰度标准差低于此值判空镜','调大 → 更严'],
+    th_blinkEdge:['闭眼','眼部边缘密度低于此值判闭眼（双眼都低）','调大 → 更严'],
+    th_dupSim:['重复','相似度高于此值判重复（含像素二次确认）','调大 → 更严']
+  },
+  en: {
+    pathPh:'Photo folder path, e.g. /mnt/photos', pathPh2:'/mnt/photos',
+    scan:'Scan', stop:'Stop', globalDup:'Global dedupe', cross:'Cross-dir',
+    heroTitle:'Drop in a whole photo library', heroSub:'Eight checks per photo — the rejects surface themselves',
+    heroHint:'Paste the full path of your photo folder', heroBtn:'Scan this folder',
+    f1:'Single binary, zero deps', f2:'Read-only, never deletes', f3:'No network, no uploads', f4:'Adjustable thresholds',
+    d1:'Corrupted', d2:'Blank', d3:'Blur', d4:'Noise', d5:'Exposure', d6:'Lens dirt', d7:'Duplicate', d8:'Closed eyes',
+    s_total:'Total', s_issue:'Issues', s_dup:'Duplicates', s_bad:'Corrupted', s_ok:'Clean',
+    fAll:'All', fIssue:'Issues', fDup:'Dupes', fOk:'Clean', csv:'Export CSV', organize:'Archive rejects…',
+    more:'Load more', detTitle:'Detected', metricsTitle:'Metrics',
+    kSwitch:'Prev / next', kZoom:'Zoom ·', kFit:'Fit', kClose:'Close',
+    thTitle:'Thresholds', thSub:'Re-scan to apply', close:'Close', reset:'Defaults', apply:'Apply',
+    loginTitle:'Password required', loginSub:'This service listens on a LAN address and requires a password. It is printed in the startup log (or set via PCP_PASS).',
+    loginPh:'Password', loginBtn:'Enter',
+    unit:'', needPath:'Enter a photo folder path first', collecting:'Collecting files…',
+    found:'%d issues found', scanDone:'Done · %d photos · %ss',
+    scanFailed:'Scan failed', connLost:'Connection lost, please retry', stopped:'Stopped',
+    moreN:'Load more (%d left)', emptyTitle:'No matching photos', emptySub:'Try another filter',
+    orgFail:'Archive failed: ', orgDone:'Archived %d files to _待整理/',
+    orgDone2:'Archived %d/%d · re-scan to refresh',
+    thSaved:'Thresholds applied (version %d), re-scan to take effect', loginErr:'Wrong password, try again',
+    crossFound:'%d cross-folder duplicate candidates — see CSV export',
+    noIssue:'No quality issues',
+    L损坏:'Corrupted', L模糊:'Blur', L空镜:'Blank', L噪点:'Noise', L欠曝:'Under', L过曝:'Over',
+    L脏污:'Dirt', L闭眼:'Blink', L重复:'Dup', L正常:'Clean',
+    mMean:'Mean brightness', mBlack:'Clipped black', mWhite:'Clipped white', mLap:'Laplacian std',
+    mNoise:'Noise floor', mFaces:'Faces / closed', mEdge:'Min eye edge density',
+    vLap:'Lap ', vNoise:'Noise ', vStd:'Std ', vBlack:'% black', vWhite:'% white', vGroup:'Group ',
+    th_blurLapStd:['Blur','Laplacian std below this = blurry','Higher → stricter'],
+    th_noiseFloor:['Noise','Flat-area noise floor above this = noisy','Lower → stricter'],
+    th_expUnder:['Under','Mean below this and >35% clipped black','Higher → stricter'],
+    th_expOver:['Over','Mean above this and >80% clipped white','Lower → stricter'],
+    th_blankStd:['Blank','Global gray std below this = blank','Higher → stricter'],
+    th_blinkEdge:['Blink','Eye edge density below this (both eyes)','Higher → stricter'],
+    th_dupSim:['Duplicate','Similarity above this = duplicate','Higher → stricter']
+  }
+};
+let LANG = localStorage.getItem('pcp.lang') || 'zh';
+// ?lang=zh|en 可覆盖已保存的偏好，方便分享固定语言的链接
+(function(){ const q = new URLSearchParams(location.search).get('lang');
+  if(q === 'zh' || q === 'en'){ LANG = q; localStorage.setItem('pcp.lang', q); } })();
+function t(k){ const d = I18N[LANG] || I18N.zh; return (k in d) ? d[k] : (k in I18N.zh ? I18N.zh[k] : k); }
+function applyLang(){
+  document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(e=>{
+    const k = e.getAttribute('data-i18n');
+    if(k in (I18N[LANG]||{})) e.textContent = I18N[LANG][k];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(e=>{
+    const k = e.getAttribute('data-i18n-ph');
+    if(k in (I18N[LANG]||{})) e.placeholder = I18N[LANG][k];
+  });
+  $('#langBtn').textContent = LANG === 'zh' ? 'EN' : '中';
+  if(state.items && state.items.length) render();
+  renderThresholds();
+  if($('#mask').classList.contains('on') && state.cur >= 0) showCurrent();
+}
+
 const $ = s => document.querySelector(s);
-const state = { items: [], filter:'all', root:'', th:null, specs:null, cur:-1, zoom:1, panX:0, panY:0 };
+const state = {
+  items: [], filter:'all', root:'', th:null, specs:null, cur:-1, zoom:1, panX:0, panY:0,
+  page: 1, PAGE_SIZE: 60, finished: false
+};
 let es = null;
 
 const LABEL_COLOR = {
@@ -480,12 +626,42 @@ function toast(msg, ms=2600){
   clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('on'), ms);
 }
 
+$('#langBtn').onclick = ()=>{
+  LANG = LANG === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('pcp.lang', LANG);
+  applyLang();
+};
+
 async function boot(){
-  try{ const j = await (await fetch('/api/version')).json(); $('#ver').textContent = j.version || ''; }catch(e){}
+  let j = null;
+  try{ j = await (await fetch('/api/version')).json(); }catch(e){ return; }
+  $('#ver').textContent = j.version || '';
+  applyLang();
+  if(j.auth && !j.authed){
+    $('#login').classList.add('on');
+    setTimeout(()=>$('#passInput').focus(), 60);
+    return;
+  }
+  await afterAuth();
+}
+
+async function afterAuth(){
   await loadThresholds();
   const last = localStorage.getItem('pcp.lastRoot');
   if(last && !$('#root').value){ $('#root').value = last; $('#root2').value = last; }
+  const q = new URLSearchParams(location.search).get('root');
+  if(q){ $('#root').value = q; $('#root2').value = q; setTimeout(()=>beginScan(q), 120); }
 }
+
+$('#loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const r = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({pass: $('#passInput').value})});
+  if(!r.ok){ $('#loginErr').textContent = t('loginErr'); $('#passInput').select(); return; }
+  $('#loginErr').textContent = '';
+  $('#login').classList.remove('on');
+  await afterAuth();
+});
 
 async function loadThresholds(){
   try{
@@ -494,15 +670,6 @@ async function loadThresholds(){
   }catch(e){}
 }
 
-const TH_LABELS = {
-  blurLapStd:['模糊','拉普拉斯标准差低于此值判模糊','调大 → 更严'],
-  noiseFloor:['噪点','平坦区噪声底线高于此值判噪点','调小 → 更严'],
-  blankStd:['空镜','全局灰度标准差低于此值判空镜','调大 → 更严'],
-  expUnder:['欠曝','平均亮度低于此值且死黑占比 >35% 判欠曝','调大 → 更严'],
-  expOver:['过曝','平均亮度高于此值且死白占比 >80% 判过曝','调小 → 更严'],
-  dupSim:['重复','相似度高于此值判重复（含像素二次确认）','调大 → 更严'],
-  blinkEdge:['闭眼','眼部边缘密度低于此值判闭眼（双眼都低）','调大 → 更严']
-};
 
 function renderThresholds(){
   if(!state.th || !state.specs) return;
@@ -511,7 +678,8 @@ function renderThresholds(){
   const keys = ORDER.filter(k => state.specs[k]).concat(Object.keys(state.specs).filter(k => !ORDER.includes(k)));
   for(const k of keys){
     const spec = state.specs[k];
-    const [name, tip, dir] = TH_LABELS[k] || [k,'',''];
+    const lbl = t('th_' + k);
+    const [name, tip, dir] = Array.isArray(lbl) ? lbl : [k,'',''];
     const el = document.createElement('div');
     el.className = 'sl';
     el.innerHTML =
@@ -532,10 +700,10 @@ function renderThresholds(){
 
 function beginScan(root){
   root = (root || '').trim();
-  if(!root){ toast('先填一个照片文件夹路径'); $('#root').focus(); return; }
+  if(!root){ toast(t('needPath')); $('#root').focus(); return; }
   if(es) es.close();
 
-  state.root = root; state.items = []; state.filter = 'all'; state.finished = false;
+  state.root = root; state.items = []; state.filter = 'all'; state.finished = false; state.page = 1;
   localStorage.setItem('pcp.lastRoot', root);
   $('#root').value = root; $('#root2').value = root;
 
@@ -546,15 +714,17 @@ function beginScan(root){
   $('#scanBtn').disabled = true;
   $('#stopBtn').style.display = 'inline-flex';
   $('#prog').classList.add('on'); $('#progBar').style.width = '0%';
-  setStatus('正在收集文件…', 'run');
+  setStatus(t('collecting'), 'run');
 
-  es = new EventSource('/api/scan?root=' + encodeURIComponent(root) + '&face=1');
+  es = new EventSource('/api/scan?root=' + encodeURIComponent(root) + '&face=1&global=' +
+    ($('#globalDup').checked ? '1' : '0'));
 
   es.addEventListener('progress', ev=>{
     const p = JSON.parse(ev.data);
     const pct = p.total ? p.done * 100 / p.total : 0;
     $('#progBar').style.width = pct.toFixed(1) + '%';
-    setStatus(p.done + ' / ' + p.total + ' · ' + p.current + (p.issues ? ' · 已发现 ' + p.issues + ' 个问题' : ''), 'run');
+    setStatus(p.done + ' / ' + p.total + ' · ' + p.current +
+      (p.issues ? ' · ' + t('found').replace('%d', p.issues) : ''), 'run');
   });
 
   es.addEventListener('done', ev=>{
@@ -563,13 +733,15 @@ function beginScan(root){
     state.finished = true;
     $('#progBar').style.width = '100%';
     const s = d.summary;
-    setStatus('扫描完成 · ' + s.total + ' 张 · 用时 ' + (s.elapsedMs/1000).toFixed(1) + 's', 'done');
+    state.crossDups = d.crossDups || [];
+    setStatus(t('scanDone').replace('%d', s.total).replace('%s', (s.elapsedMs/1000).toFixed(1)), 'done');
+    if(state.crossDups.length) toast(t('crossFound').replace('%d', state.crossDups.length), 4200);
     endScan();
     render();
   });
 
   es.addEventListener('failed', ev=>{
-    let msg = '扫描中断';
+    let msg = t('scanFailed');
     try{ msg = JSON.parse(ev.data).error || msg; }catch(e){}
     state.finished = true;
     setStatus(msg, 'err'); toast(msg); endScan();
@@ -580,7 +752,7 @@ function beginScan(root){
   es.onerror = ()=>{
     if(state.finished || !es) return;
     state.finished = true;
-    setStatus('连接中断，请重试', 'err');
+    setStatus(t('connLost'), 'err');
     endScan();
   };
 }
@@ -598,7 +770,7 @@ function setStatus(text, kind){
 }
 
 $('#scanBtn').onclick = ()=> beginScan($('#root').value);
-$('#stopBtn').onclick = ()=>{ if(es){ es.close(); es = null; } endScan(); setStatus('已停止', 'done'); };
+$('#stopBtn').onclick = ()=>{ if(es){ es.close(); es = null; } endScan(); setStatus(t('stopped'), 'done'); };
 $('#root').addEventListener('keydown', e=>{ if(e.key === 'Enter') beginScan($('#root').value); });
 $('#heroForm').addEventListener('submit', e=>{ e.preventDefault(); beginScan($('#root2').value); });
 
@@ -631,16 +803,19 @@ function render(){
   // 正常 = 没质量问题。重复只是冗余，不影响这张照片本身是好的。
   const ok     = items.length - issues;
 
-  $('#cTotal').innerHTML = items.length + '<span class="u">张</span>';
-  $('#cIssue').innerHTML = issues + '<span class="u">张</span>';
-  $('#cDup').innerHTML   = dups + '<span class="u">张</span>';
-  $('#cBad').innerHTML   = bad + '<span class="u">张</span>';
-  $('#cOk').innerHTML    = ok + '<span class="u">张</span>';
+  $('#cTotal').innerHTML = items.length + '<span class="u">' + t('unit') + '</span>';
+  $('#cIssue').innerHTML = issues + '<span class="u">' + t('unit') + '</span>';
+  $('#cDup').innerHTML   = dups + '<span class="u">' + t('unit') + '</span>';
+  $('#cBad').innerHTML   = bad + '<span class="u">' + t('unit') + '</span>';
+  $('#cOk').innerHTML    = ok + '<span class="u">' + t('unit') + '</span>';
 
   $('#nAll').textContent = items.length;
   $('#nIssue').textContent = issues;
   $('#nDup').textContent = dups;
   $('#nOk').textContent = ok;
+  const crossN = (state.crossDups || []).length;
+  $('#crossStat').style.display = crossN ? '' : 'none';
+  $('#cCross').innerHTML = crossN + '<span class="u">' + t('unit') + '</span>';
 
   const f = state.filter;
   const shown = deco.filter(d =>
@@ -648,29 +823,36 @@ function render(){
     f === 'dup'   ? d.labels.includes('重复') :
     f === 'ok'    ? !d.isIssue : true);
 
+  const visible = shown.slice(0, state.page * state.PAGE_SIZE);
+  const more = $('#more');
+  if(shown.length > visible.length){
+    more.style.display = 'inline-block';
+    more.textContent = t('moreN').replace('%d', shown.length - visible.length);
+  } else { more.style.display = 'none'; }
+
   const grid = $('#grid'); grid.innerHTML = '';
   if(!shown.length){
     $('#empty').style.display = 'block';
     $('#empty').innerHTML =
       '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
         '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 15l4.5-4.5a2 2 0 012.8 0L15 15"/><circle cx="9" cy="9" r="1.5"/>' +
-      '</svg><b>没有符合条件的照片</b>换个筛选条件看看';
-    return;
+      '</svg><b>' + t('emptyTitle') + '</b>' + t('emptySub');
+return;
   }
   $('#empty').style.display = 'none';
 
   const frag = document.createDocumentFragment();
-  for(const d of shown){
+  for(const d of visible){
     const el = document.createElement('div');
     el.className = 'ph';
     const fl = d.labels.length
-      ? d.labels.slice(0,3).map(l => '<span class="fl ' + (LABEL_COLOR[l]||'') + '">' + l + '</span>').join('')
+      ? d.labels.slice(0,3).map(l => '<span class="fl ' + (LABEL_COLOR[l]||'') + '">' + t('L'+l) + '</span>').join('')
       : '';
     el.innerHTML =
       '<div class="frame">' +
         '<img loading="lazy" src="/api/thumb?path=' + encodeURIComponent(d.it.path) + '&size=360" alt="">' +
         (fl ? '<div class="flags">' + fl + '</div>' : '') +
-        (d.labels.includes('重复') && d.it.dupGroup ? '<span class="dupmark">组 ' + d.it.dupGroup + '</span>' : '') +
+        (d.labels.includes('重复') && d.it.dupGroup ? '<span class="dupmark">' + t('vGroup') + d.it.dupGroup + '</span>' : '') +
       '</div>' +
       '<div class="cap"><span class="nm" title="' + esc(d.it.rel) + '">' + esc(baseName(d.it.rel)) + '</span>' +
       '<span class="sz">' + fmtSize(d.it.size) + '</span></div>';
@@ -683,18 +865,28 @@ function render(){
 $('#tabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-f]'); if(!b) return;
   $('#tabs').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); state.filter = b.dataset.f; render();
+  b.classList.add('on'); state.filter = b.dataset.f; state.page = 1; render();
 });
+
+function loadMore(){
+  if($('#more').style.display === 'none') return;
+  state.page++;
+  render();
+}
+$('#more').onclick = loadMore;
+window.addEventListener('scroll', ()=>{
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 700) loadMore();
+}, {passive:true});
 
 $('#csvBtn').onclick = ()=> { window.location = '/api/export.csv'; };
 
 $('#organizeBtn').onclick = async ()=>{
   if(!confirm('把废片按类型移动到「_待整理」文件夹？\n\n不会删除任何照片；同名文件自动加序号。')) return;
   const r = await fetch('/api/organize', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:'move'})});
-  if(!r.ok){ toast('归档失败：' + await r.text()); return; }
+  if(!r.ok){ toast(t('orgFail') + await r.text()); return; }
   const j = await r.json();
-  toast('已归档 ' + j.done + ' 个文件到 _待整理/');
-  setStatus('归档完成 ' + j.done + '/' + j.total + ' · 重新扫描可查看结果', 'done');
+  toast(t('orgDone').replace('%d', j.done));
+  setStatus(t('orgDone2').replace('%d', j.done).replace('%d', j.total), 'done');
 };
 
 function openViewer(idx){
@@ -708,7 +900,10 @@ function closeViewer(){ $('#mask').classList.remove('on'); state.cur = -1; }
 function showCurrent(){
   const it = state.items[state.cur]; if(!it) return;
   const r = it.result || {};
-  $('#bigImg').src = '/api/full?path=' + encodeURIComponent(it.path);
+  const stageEl = $('#stage');
+  const vw = Math.max(256, Math.round((stageEl.clientWidth || 1000) * (window.devicePixelRatio || 1)));
+  const vh = Math.max(256, Math.round((stageEl.clientHeight || 700) * (window.devicePixelRatio || 1)));
+  $('#bigImg').src = '/api/full?path=' + encodeURIComponent(it.path) + '&w=' + vw + '&h=' + vh;
   $('#pvName').textContent = baseName(it.rel);
   $('#pvSub').textContent = fmtSize(it.size) + ' · ' + (r.width||0) + ' × ' + (r.height||0);
 
@@ -719,28 +914,28 @@ function showCurrent(){
   $('#pvIssues').innerHTML = labels.length
     ? labels.map(l => {
         let v = '';
-        if(l === '模糊') v = '拉普拉斯 ' + (r.lapStd||0).toFixed(1);
-        if(l === '噪点') v = '噪声 ' + (r.noiseFloor||0).toFixed(1);
-        if(l === '空镜') v = '标准差 ' + (r.grayStd||0).toFixed(1);
+        if(l === '模糊') v = t('vLap') + (r.lapStd||0).toFixed(1);
+        if(l === '噪点') v = t('vNoise') + (r.noiseFloor||0).toFixed(1);
+        if(l === '空镜') v = t('vStd') + (r.grayStd||0).toFixed(1);
         if(l === '闭眼') v = r.blink ? (r.blink.closed + '/' + r.blink.faces) : '';
-        if(l === '重复') v = it.dupGroup ? ('组 ' + it.dupGroup) : '';
-        if(l === '欠曝') v = ((r.expClipLow||0)*100).toFixed(0) + '% 死黑';
-        if(l === '过曝') v = ((r.expClipHigh||0)*100).toFixed(0) + '% 死白';
+        if(l === '重复') v = it.dupGroup ? (t('vGroup') + it.dupGroup) : '';
+        if(l === '欠曝') v = ((r.expClipLow||0)*100).toFixed(0) + t('vBlack');
+        if(l === '过曝') v = ((r.expClipHigh||0)*100).toFixed(0) + t('vWhite');
         return '<div class="issue"><span class="sw" style="background:' + (dotColor[LABEL_COLOR[l]] || 'var(--muted)') + '"></span>' +
-               '<span class="nmx">' + l + '</span><span class="val">' + v + '</span></div>';
+               '<span class="nmx">' + t('L'+l) + '</span><span class="val">' + v + '</span></div>';
       }).join('')
-    : '<div class="issue"><span class="sw" style="background:var(--green)"></span><span class="nmx">未发现质量问题</span></div>';
+    : '<div class="issue"><span class="sw" style="background:var(--green)"></span><span class="nmx">' + t('noIssue') + '</span></div>';
 
   const rows = [
-    ['亮度均值', (r.expMean||0).toFixed(1)],
-    ['死黑占比', ((r.expClipLow||0)*100).toFixed(1) + '%'],
-    ['死白占比', ((r.expClipHigh||0)*100).toFixed(1) + '%'],
-    ['拉普拉斯标准差', (r.lapStd||0).toFixed(2)],
-    ['噪声底线', (r.noiseFloor||0).toFixed(2)]
+    [t('mMean'), (r.expMean||0).toFixed(1)],
+    [t('mBlack'), ((r.expClipLow||0)*100).toFixed(1) + '%'],
+    [t('mWhite'), ((r.expClipHigh||0)*100).toFixed(1) + '%'],
+    [t('mLap'), (r.lapStd||0).toFixed(2)],
+    [t('mNoise'), (r.noiseFloor||0).toFixed(2)]
   ];
   if(r.blink && r.blink.faces){
-    rows.push(['人脸 / 闭眼', r.blink.faces + ' / ' + r.blink.closed]);
-    rows.push(['眼部最小边缘密度', (r.blink.minEdge||0).toFixed(3)]);
+    rows.push([t('mFaces'), r.blink.faces + ' / ' + r.blink.closed]);
+    rows.push([t('mEdge'), (r.blink.minEdge||0).toFixed(3)]);
   }
   $('#pvMetrics').innerHTML = rows.map(([k,v]) =>
     '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>').join('');
@@ -835,15 +1030,10 @@ $('#thSave').onclick = async ()=>{
   const j = await r.json();
   state.th = j.current;
   closeDrawer();
-  toast('阈值已应用（版本 ' + j.version + '），重新扫描后生效');
+  toast(t('thSaved').replace('%d', j.version));
 };
 
 boot();
-// ?root=D:\photos 直接开扫：方便收藏常用目录，也方便自动化截图
-(function(){
-  const q = new URLSearchParams(location.search).get('root');
-  if(q){ $('#root').value = q; $('#root2').value = q; setTimeout(()=>beginScan(q), 120); }
-})();
 </script>
 </body>
 </html>

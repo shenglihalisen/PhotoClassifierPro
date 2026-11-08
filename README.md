@@ -133,18 +133,25 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # 关掉闭眼检测（更�
 
 ## 7. 隐私与安全
 
-- 只监听 `127.0.0.1`，局域网访问不到。
-- 不上传任何照片。没有任何网络请求（除了打开本地浏览器）。
-- 缩略图接口做了路径校验，只能读当前扫描根目录内的文件。
+**本机模式（默认，监听 127.0.0.1）**
+- 不上传任何照片，没有任何外部网络请求。
+- 图片接口做了路径 + 扩展名双重校验，只能读当前扫描根内的图片。
 - 源文件全程只读（除非你显式点「归档」或加 `-move`）。
+
+**对外模式（`-addr 0.0.0.0`，容器/局域网）**
+- **自动启用口令认证**：口令来自 `-pass` 或环境变量 `PCP_PASS`，都没给就启动时随机生成并打印到日志。所有 `/api/*` 都要带会话 Cookie。
+- 强烈建议同时加 `-base-dir <照片目录>`，把 `/api/scan` 的扫描范围锁死在该目录内；不加会有启动警告。
+- stable 仓库的 Dockerfile 已经固定 `-base-dir /data`，compose 里可设 `PCP_PASS`。
+- 这是 HTTP 明文服务，只适合可信局域网；要上公网请自己套 HTTPS 反代。
 
 ## 8. 已知限制
 
 - **不支持 HEIC/HEIF 和相机 RAW（CR2/CR3/NEF/ARW）**。这两类需要 libheif / libraw 的 cgo 绑定，会破坏 `CGO_ENABLED=0` 的单文件前提。需要的话请先用工具转成 JPEG。
 - 闭眼检测基于 Haar 正脸模型，**侧脸、低头、遮挡严重的人脸检不出**。这是 Viola-Jones 的固有限制，不是 bug。
 - 闭眼阈值（0.10）需要在你的真实素材上再校准一次。合成素材只能验证方向。
-- 重复检测只在同一次扫描内生效，不跨目录做全库去重。
+- 单次扫描内的重复检测默认开启；跨扫描的**全库去重**要显式勾「全库去重」或加 `-global-dup`，结果是候选（需人工确认）。
 - 界面是单用户的：同一时间只服务一个扫描任务。
+- 界面中英双语（顶栏 EN/中 切换，`?lang=en` 可固定英文）；结果页分页渲染，每页 60 张。
 - 原生窗口需要 **WebView2 运行时**（Win10/11 随 Edge 预装，Win7/8 需自己装）。没有时会自动回退到浏览器，不会闪退。
 
 ## 9. 项目结构
@@ -275,3 +282,26 @@ Two screens:
 - **Results**: a compact stat bar (total / issues / duplicates / corrupted / clean) → segmented filters → thumbnail grid. Click a thumbnail to open the viewer: wheel to zoom, drag to pan, `←`/`→` to step, `0` to fit, `Esc` to close. Lens-dirt boxes are overlaid on the image in red.
 
 The path field remembers your last folder (localStorage). To make a folder "open and scan", use `?root=D://photos`.
+
+## 12. 附加工具与参数
+
+```bash
+# 全库去重（跨扫描比对，索引存在用户配置目录）
+PhotoClassifierPro.exe -scan D://photos -global-dup
+
+# 对外提供服务的完整参数
+PhotoClassifierPro.exe -no-gui -addr 0.0.0.0 -port 8080 -base-dir D://photos -pass 你的口令
+
+# 用真实人像校准闭眼阈值（把睁眼、闭眼照片分放两个目录）
+go run ./cmd/calibrate -open ./open -closed ./closed
+go run ./cmd/calibrate -scan ./portraits     # 无标注，只看分布
+
+# 打开即扫描 / 固定英文界面
+http://127.0.0.1:8080/?root=D://photos&lang=en
+```
+
+三个仓库共用一套内核；`scripts/sync-siblings.sh <repos 目录>` 把预览通道（Pro）的共享代码同步到标准版和保守版。
+
+## 13. License
+
+MIT，见 [LICENSE](./LICENSE)。

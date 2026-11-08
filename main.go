@@ -32,7 +32,7 @@ import (
 )
 
 // 版本号：与 CHANGELOG 对应。
-const version = "v3.2.0-go"
+const version = "v3.3.0-go"
 
 func main() {
 	var (
@@ -48,6 +48,9 @@ func main() {
 		bindAddr  = flag.String("addr", "127.0.0.1", "监听地址。0.0.0.0 允许局域网访问（无认证，慎用）")
 		noBrowser = flag.Bool("no-browser", false, "启动 Web 服务后不自动打开浏览器")
 		noGui     = flag.Bool("no-gui", false, "不开原生窗口，改用默认浏览器")
+		passWord  = flag.String("pass", "", "对外监听时的访问口令（也可用环境变量 PCP_PASS，留空则随机生成）")
+		baseDir   = flag.String("base-dir", "", "把扫描范围锁在这个目录内（容器/公网部署必填）")
+		globalDup = flag.Bool("global-dup", false, "启用跨扫描重复索引，检查与其他目录的历史照片是否重复")
 		showVer   = flag.Bool("version", false, "打印版本号")
 	)
 	flag.Usage = usage
@@ -66,7 +69,7 @@ func main() {
 	}
 
 	if *scanDir != "" {
-		os.Exit(runScan(*scanDir, *jsonOut, *csvOut, *doMove, *doCopy, *recursive, *withFace, *workers))
+		os.Exit(runScan(*scanDir, *jsonOut, *csvOut, *doMove, *doCopy, *recursive, *withFace, *workers, *globalDup))
 	}
 
 	// 默认：原生窗口（Windows + WebView2）。没有运行时或用户指定 -no-gui 时回退浏览器。
@@ -77,11 +80,18 @@ func main() {
 			fmt.Fprintf(os.Stderr, "原生窗口不可用（%v），改用浏览器。\n", err)
 		}
 	}
-	if err := web.Serve(web.Config{
+	cfg := web.Config{
 		Addr:        fmt.Sprintf("%s:%d", *bindAddr, *port),
 		Version:     version,
 		OpenBrowser: !*noBrowser,
-	}); err != nil {
+		Pass:        *passWord,
+		BaseDir:     *baseDir,
+	}
+	// 非回环监听却没有限制扫描范围，启动时明确提醒，别等出事才发现。
+	if *bindAddr != "127.0.0.1" && *bindAddr != "::1" && *bindAddr != "localhost" && *baseDir == "" {
+		fmt.Fprintf(os.Stderr, "⚠️  监听 %s 但未设置 -base-dir，接口可扫描本机任意目录。建议加 -base-dir <照片目录>。\n", *bindAddr)
+	}
+	if err := web.Serve(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "启动失败: %v\n", err)
 		os.Exit(1)
 	}
@@ -105,7 +115,7 @@ func usage() {
 `)
 }
 
-func runScan(dir string, asJSON bool, csvPath string, move, copyMode, recursive, withFace bool, workers int) int {
+func runScan(dir string, asJSON bool, csvPath string, move, copyMode, recursive, withFace bool, workers int, globalDup bool) int {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "路径无效: %v\n", err)
@@ -128,6 +138,7 @@ func runScan(dir string, asJSON bool, csvPath string, move, copyMode, recursive,
 		Recursive:  recursive,
 		Face:       withFace,
 		Thresholds: qc.DefaultThresholds(),
+		GlobalDup:  globalDup,
 	}, func(p engine.Progress) {
 		if asJSON {
 			return // JSON 模式下不污染 stdout
@@ -152,7 +163,7 @@ func runScan(dir string, asJSON bool, csvPath string, move, copyMode, recursive,
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(res)
 	} else {
-		printReport(res, time.Since(start))
+		printReport(res, time.Since(start), globalDup)
 	}
 
 	if csvPath != "" {
@@ -180,11 +191,21 @@ func runScan(dir string, asJSON bool, csvPath string, move, copyMode, recursive,
 	return 0
 }
 
-func printReport(res *engine.Result, elapsed time.Duration) {
+func printReport(res *engine.Result, elapsed time.Duration, globalDup bool) {
 	s := res.Summary
 	fmt.Printf("\n扫描完成：共 %d 张，用时 %.1fs\n", s.Total, elapsed.Seconds())
 	fmt.Printf("  质量问题 %d 张   损坏 %d 张   重复 %d 张（%d 组）\n",
 		s.Issues, s.Failed, s.Duplicate, len(res.Groups))
+
+	if globalDup {
+		idx := engine.LoadDupIndex(engine.DefaultIndexPath())
+		fmt.Printf("  全库去重：索引 %s，跨目录候选 %d 张\n", idx.IndexStats(), s.Cross)
+	}
+	if len(res.CrossDups) > 0 && len(res.CrossDups) <= 10 {
+		for _, c := range res.CrossDups {
+			fmt.Printf("  [跨目录] %s  ↔  %s (汉明 %d)\n", c.Current, c.Other, c.Distance)
+		}
+	}
 
 	if len(s.ByLabel) > 0 {
 		type kv struct {

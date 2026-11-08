@@ -21,6 +21,7 @@ import (
 	_ "image/png"
 	"io"
 	"os"
+	"path/filepath"
 
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
@@ -35,6 +36,11 @@ var SupportedExts = map[string]bool{
 	".bmp": true,
 	".tif": true, ".tiff": true,
 	".webp": true,
+	// 下面这些需要系统装了 ffmpeg 或 ImageMagick 才能解（见 external.go）；
+	// 没装时扫描器仍会收集它们，但会记成带明确原因的「损坏」。
+	".heic": true, ".heif": true,
+	".cr2": true, ".cr3": true, ".nef": true, ".arw": true,
+	".dng": true, ".raf": true, ".orf": true, ".rw2": true, ".pef": true,
 }
 
 // DecodeFile 读文件并解码成 image.Image，同时按 EXIF Orientation 转正。
@@ -46,7 +52,23 @@ func DecodeFile(path string) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return DecodeBytes(data)
+	img, err := DecodeBytes(data)
+	if err == nil {
+		return img, nil
+	}
+	// 纯 Go 解不开：如果是 HEIC/RAW，试试系统的外部转换器
+	ext := filepath.Ext(path)
+	if IsExternalFormat(ext) {
+		if tool := ExternalConverter(); tool != "" {
+			if img2, err2 := convertVia(tool, path); err2 == nil {
+				return img2, nil
+			} else {
+				return nil, fmt.Errorf("%w（外部转换也失败了: %v）", err, err2)
+			}
+		}
+		return nil, fmt.Errorf("%w（%s 需要系统安装 ffmpeg 或 ImageMagick）", err, ext)
+	}
+	return nil, err
 }
 
 // DecodeBytes 从内存解码（供 Web 上传与测试用）。

@@ -30,8 +30,8 @@ const (
 
 // BlinkDetector 闭眼检测器。并发安全。
 type BlinkDetector struct {
-	det  *Detector
-	mu   sync.RWMutex
+	det *Detector
+	mu  sync.RWMutex
 	// edgeThresh 眼部边缘密度低于此值判为闭眼。
 	edgeThresh float64
 	// maxDim 检测前把图缩到这个长边，控制耗时。
@@ -98,6 +98,31 @@ func (b *BlinkDetector) DetectFaces(img image.Image) (faces, closed int, minEdge
 		minEdge = 0
 	}
 	return len(fs), closed, minEdge
+}
+
+// FaceMinEdge 返回图中每张检出人脸的「左右眼边缘密度的较小值」。
+//
+// 闭眼判据用的正是这个量（两眼都低才判），所以阈值校准必须统计它，
+// 而不是所有眼睛的边际分布 —— 后者会把侧脸/遮挡的单眼样本混进来。
+// 返回值可直接拿去算分位数；没有人脸时返回空切片。
+func (b *BlinkDetector) FaceMinEdge(img image.Image) []float64 {
+	if skinRatio(img) < 0.015 {
+		return nil
+	}
+	g := toGrayScaled(img, b.maxDim)
+	if g == nil {
+		return nil
+	}
+	fs, err := b.det.Detect(g, DetectOptions{MinSize: 48, MinNeighbors: 3})
+	if err != nil || len(fs) == 0 {
+		return nil
+	}
+	out := make([]float64, 0, len(fs))
+	for _, f := range fs {
+		l, r := eyeEdgeDensity(g, f)
+		out = append(out, math.Min(l, r))
+	}
+	return out
 }
 
 // eyeEdgeDensity 返回左、右眼的边缘密度（0~1）。
