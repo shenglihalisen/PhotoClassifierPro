@@ -20,7 +20,9 @@
   body{
     margin:0;background:var(--bg);color:var(--ink);
     font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    /* 不要写 -webkit-font-smoothing:antialiased：Windows ClearType 下会关掉
+       次像素抗锯齿，中文笔画会明显发虚。交给系统默认渲染。 */
+    text-rendering:optimizeLegibility;
   }
   button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;padding:0}
   input{font:inherit;color:inherit}
@@ -31,7 +33,7 @@
   header{
     position:sticky;top:0;z-index:30;height:56px;
     display:flex;align-items:center;gap:14px;padding:0 20px;
-    background:rgba(251,251,249,.86);backdrop-filter:saturate(180%) blur(12px);
+    background:rgba(251,251,249,.97);
     border-bottom:1px solid var(--line-soft);
   }
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px;letter-spacing:-.01em;white-space:nowrap}
@@ -171,7 +173,7 @@
   .ph .flags{position:absolute;left:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 16px)}
   .fl{
     font-size:10.5px;line-height:1;padding:4px 7px;border-radius:5px;font-weight:500;
-    background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+    background:rgba(255,255,255,.97);
     color:var(--ink-2);box-shadow:0 1px 3px rgba(0,0,0,.14);white-space:nowrap;
   }
   .fl.red{color:var(--red)} .fl.amber{color:var(--amber)}
@@ -191,7 +193,7 @@
   /* ── 预览 ── */
   .mask{
     position:fixed;inset:0;z-index:60;display:none;
-    background:rgba(16,16,14,.86);backdrop-filter:blur(14px);
+    background:rgba(16,16,14,.9);backdrop-filter:blur(8px);
     align-items:center;justify-content:center;padding:24px;
   }
   .mask.on{display:flex;animation:fade .18s ease both}
@@ -616,6 +618,11 @@ const LABEL_COLOR = {
   '脏污':'amber','闭眼':'blue','重复':'blue'
 };
 
+// 卡片约 196 CSS px 宽；按 DPR 请求，125% / 2x 屏上也不会被放大成软图
+function thumbSize(){
+  const dpr = window.devicePixelRatio || 1;
+  return Math.min(1024, Math.round(360 * dpr));
+}
 const fmtSize = n => n < 1024 ? n+' B' : n < 1048576 ? (n/1024).toFixed(0)+' KB' : (n/1048576).toFixed(1)+' MB';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const baseName = p => p.split(/[\\/]/).pop();
@@ -850,7 +857,8 @@ return;
       : '';
     el.innerHTML =
       '<div class="frame">' +
-        '<img loading="lazy" src="/api/thumb?path=' + encodeURIComponent(d.it.path) + '&size=360" alt="">' +
+        '<img loading="lazy" src="/api/thumb?path=' + encodeURIComponent(d.it.path) +
+          '&size=' + thumbSize() + '" alt="">' +
         (fl ? '<div class="flags">' + fl + '</div>' : '') +
         (d.labels.includes('重复') && d.it.dupGroup ? '<span class="dupmark">' + t('vGroup') + d.it.dupGroup + '</span>' : '') +
       '</div>' +

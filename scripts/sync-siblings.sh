@@ -12,7 +12,7 @@ ROOT="${1:?用法: sync-siblings.sh <repos 根目录>}"
 SRC="$ROOT/PhotoClassifierPro"
 [ -d "$SRC/.git" ] || { echo "找不到 $SRC"; exit 1; }
 
-ITEMS=(qc face engine web cmd main.go csv.go gui_windows.go gui_other.go
+ITEMS=(qc face engine web cmd main.go csv.go gui_windows.go gui_other.go dpi_windows.go dpi_other.go dpi_windows.go dpi_other.go
        go.mod go.sum build-windows.bat .github/workflows/test.yml)
 
 for R in photo-classifier photo-classifier-stable; do

@@ -1,3 +1,33 @@
+## v3.3.1 (2026-11-08) —— 高分屏清晰度修复
+
+### 问题
+用户反馈「界面好糊」。诊断出系统是 **125% 显示缩放**（`AppliedDPI=120`），而 Go 程序默认不声明 DPI 感知 —— Windows 会把整个 WebView2 窗口按 96dpi 渲染成位图再拉伸 1.25 倍，文字和缩略图一起发虚。
+
+### 修复
+- 新增 `dpi_windows.go`：进程启动时调用 `SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)`，失败回退 `SetProcessDPIAware()`。非 Windows 平台用 `dpi_other.go` 空实现。实测 API 返回 S_OK、`GetProcessDpiAwareness` = 1。
+- 去掉 `-webkit-font-smoothing:antialiased`：它在 Windows ClearType 下会关掉次像素抗锯齿，中文笔画发虚。
+- 顶栏与徽章去掉 `backdrop-filter: blur()`：部分 WebView2 版本会让整层降分辨率栅格化；顶栏改用近不透明底色。预览遮罩的 blur 从 14px 收到 8px。
+- 缩略图按 `devicePixelRatio` 请求尺寸（125% 屏从 360 → 450），不再把小图放大成软图。
+- JPEG 编码质量：缩略图 82 → 92，预览图 88 → 94。
+
+### 验证
+Edge headless 加 `--force-device-scale-factor=1.25` 截图确认：9 张结果完整渲染，中文笔画锐利，统计/徽章/缩略图均无软化。
+
+## v3.3.1 (2026-11-08) —— 高分屏清晰度修复
+
+### 问题
+用户反馈「界面好糊」。诊断出系统是 **125% 显示缩放**（`AppliedDPI=120`），而 Go 程序默认不声明 DPI 感知 —— Windows 会把整个 WebView2 窗口按 96dpi 渲染成位图再拉伸 1.25 倍，文字和缩略图一起发虚。
+
+### 修复
+- 新增 `dpi_windows.go`：进程启动时调用 `SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)`，失败回退 `SetProcessDPIAware()`。非 Windows 平台用 `dpi_other.go` 空实现。实测 API 返回 S_OK、`GetProcessDpiAwareness` = 1。
+- 去掉 `-webkit-font-smoothing:antialiased`：它在 Windows ClearType 下会关掉次像素抗锯齿，中文笔画发虚。
+- 顶栏与徽章去掉 `backdrop-filter: blur()`：部分 WebView2 版本会让整层降分辨率栅格化；顶栏改用近不透明底色。预览遮罩的 blur 从 14px 收到 8px。
+- 缩略图按 `devicePixelRatio` 请求尺寸（125% 屏从 360 → 450），不再把小图放大成软图。
+- JPEG 编码质量：缩略图 82 → 92，预览图 88 → 94。
+
+### 验证
+Edge headless 加 `--force-device-scale-factor=1.25` 截图确认：9 张结果完整渲染，中文笔画锐利，统计/徽章/缩略图均无软化。
+
 ## v3.3.0 (2026-11-08) —— 安全加固与规模化
 
 ### 安全（P0）

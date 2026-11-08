@@ -435,7 +435,7 @@ func handleThumb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, shrink(img, size), &jpeg.Options{Quality: 82}); err != nil {
+	if err := jpeg.Encode(&buf, shrink(img, size), &jpeg.Options{Quality: 92}); err != nil {
 		http.Error(w, "缩略图编码失败", http.StatusInternalServerError)
 		return
 	}
@@ -500,7 +500,7 @@ func handleFull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, shrink(img, long), &jpeg.Options{Quality: 88}); err != nil {
+	if err := jpeg.Encode(&buf, shrink(img, long), &jpeg.Options{Quality: 94}); err != nil {
 		http.Error(w, "编码失败", http.StatusInternalServerError)
 		return
 	}
