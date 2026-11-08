@@ -177,6 +177,15 @@ MIT License。
 - [golang.org/x/image](https://golang.org/x/image)（BSD-3-Clause）：webp / tiff / bmp 解码。
 - `haarcascade_frontalface_alt2.xml`（[OpenCV](https://opencv.org/)，Apache-2.0 / 3-clause BSD）：人脸级联模型，随仓库分发。
 
+## 11. 界面
+
+浏览器 / 窗口界面分两屏：
+
+- **首屏**：大标题 + 路径输入卡，下方列出四项保证与八个检测器。没有结果时不摆空表格。
+- **结果页**：一条紧凑统计栏（总数 / 质量问题 / 重复 / 损坏 / 正常）→ 分段筛选 → 缩略图网格。点任意缩略图进入预览，可滚轮缩放、拖拽平移、← → 切换、`0` 适应窗口、`Esc` 关闭；镜头脏污会以红框叠在原图对应位置。
+
+路径框会记住上一次扫描的目录（存在 localStorage）。想让某个目录「打开即扫描」，用 `?root=D:/photos`。
+
 ---
 
 # English
@@ -257,3 +266,12 @@ PhotoClassifierPro.exe -scan D:/photos -face=false  # skip the blink detector
 ## 6. License
 
 MIT. Third-party: [golang.org/x/image](https://golang.org/x/image) (BSD-3-Clause), `haarcascade_frontalface_alt2.xml` from [OpenCV](https://opencv.org/) (Apache-2.0 / 3-clause BSD).
+
+## 6. Interface
+
+Two screens:
+
+- **Landing**: headline, path input card, four guarantees and the eight detector chips. No empty table before the first scan.
+- **Results**: a compact stat bar (total / issues / duplicates / corrupted / clean) → segmented filters → thumbnail grid. Click a thumbnail to open the viewer: wheel to zoom, drag to pan, `←`/`→` to step, `0` to fit, `Esc` to close. Lens-dirt boxes are overlaid on the image in red.
+
+The path field remembers your last folder (localStorage). To make a folder "open and scan", use `?root=D://photos`.

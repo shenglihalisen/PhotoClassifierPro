@@ -169,7 +169,7 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 		_ = send("progress", p)
 	})
 	if err != nil {
-		_ = send("error", map[string]string{"error": err.Error()})
+		_ = send("failed", map[string]string{"error": err.Error()})
 		return
 	}
 	st.mu.Lock()
