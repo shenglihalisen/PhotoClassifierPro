@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhotoClassifierPro · 照片质量筛片</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#1f2430; --muted:#6b7280;
+    --line:#e6e8ef; --brand:#5b5bd6; --brand-soft:#eef0ff;
+    --red:#dc2626; --red-soft:#fef2f2; --amber:#d97706; --amber-soft:#fffbeb;
+    --green:#059669; --green-soft:#ecfdf5; --blue:#2563eb; --blue-soft:#eff6ff;
+    --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  button{font:inherit;cursor:pointer}
+
+  header{padding:18px 24px;background:var(--panel);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:16px;letter-spacing:.2px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .ver{color:var(--muted);font-weight:400;font-size:12px}
+  .spacer{flex:1}
+  .row{display:flex;align-items:center;gap:8px}
+  input[type=text]{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;
+    min-width:320px;color:var(--ink);outline:none}
+  input[type=text]:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .btn{padding:9px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);
+    transition:.15s;white-space:nowrap}
+  .btn:hover{border-color:#cfd3e2;background:#fafbff}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover{background:#f1f2f8;color:var(--ink)}
+
+  main{padding:20px 24px 64px;max-width:1560px;margin:0 auto}
+
+  .progress{height:6px;background:#e9ebf3;border-radius:99px;overflow:hidden;margin:0 0 16px;display:none}
+  .progress.on{display:block}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),#8b8bf0);
+    transition:width .2s ease}
+  .status{color:var(--muted);font-size:12.5px;margin:-6px 0 16px;min-height:18px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .card .k{color:var(--muted);font-size:12px;margin-bottom:4px}
+  .card .v{font-size:24px;font-weight:650;letter-spacing:.3px}
+  .card.red .v{color:var(--red)} .card.amber .v{color:var(--amber)} .card.green .v{color:var(--green)}
+
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .tab{padding:7px 14px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:13px}
+  .tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .tab .n{opacity:.75;margin-left:4px;font-size:12px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px}
+  .ph{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:var(--shadow);transition:.16s;position:relative}
+  .ph:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(16,24,40,.10)}
+  .ph .thumb{aspect-ratio:4/3;background:#eef0f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .ph .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .ph .meta{padding:8px 10px 10px}
+  .ph .name{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
+  .badges{display:flex;flex-wrap:wrap;gap:4px}
+  .b{font-size:11px;padding:2px 7px;border-radius:6px;background:#f1f2f8;color:var(--muted);white-space:nowrap}
+  .b.red{background:var(--red-soft);color:var(--red)}
+  .b.amber{background:var(--amber-soft);color:var(--amber)}
+  .b.blue{background:var(--blue-soft);color:var(--blue)}
+  .b.green{background:var(--green-soft);color:var(--green)}
+
+  /* 预览层 */
+  .mask{position:fixed;inset:0;background:rgba(15,18,30,.72);backdrop-filter:blur(6px);
+    display:none;z-index:60;align-items:center;justify-content:center;padding:28px}
+  .mask.on{display:flex}
+  .viewer{background:var(--panel);border-radius:18px;width:min(1280px,96vw);height:min(860px,92vh);
+    display:grid;grid-template-columns:1fr 330px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  .stage{position:relative;background:#14161f;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .stage img{max-width:none;max-height:none;transform-origin:center center;user-select:none;-webkit-user-drag:none;cursor:grab}
+  .stage img.zoomed{cursor:grabbing}
+  .stage .dirtbox{position:absolute;border:2px solid rgba(220,38,38,.9);background:rgba(220,38,38,.16);
+    border-radius:6px;pointer-events:none}
+  .zoombar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;
+    background:rgba(20,22,31,.72);padding:6px;border-radius:12px}
+  .zoombar button{width:34px;height:34px;border:none;border-radius:8px;background:rgba(255,255,255,.12);
+    color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center}
+  .zoombar button:hover{background:rgba(255,255,255,.24)}
+  .zoombar .pct{color:#fff;font-size:12px;display:flex;align-items:center;padding:0 8px;min-width:56px;justify-content:center}
+  .nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border:none;border-radius:50%;
+    background:rgba(255,255,255,.14);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center}
+  .nav:hover{background:rgba(255,255,255,.28)}
+  .nav.prev{left:14px} .nav.next{right:14px}
+  .side{border-left:1px solid var(--line);padding:20px;overflow-y:auto}
+  .side h3{margin:0 0 4px;font-size:15px;word-break:break-all}
+  .side .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  .kv{display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:none}
+  .kv .k{color:var(--muted)} .kv .v{font-variant-numeric:tabular-nums}
+  .issue{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;background:var(--red-soft);
+    margin-bottom:6px;font-size:12.5px;color:#7f1d1d}
+  .issue .d{width:7px;height:7px;border-radius:50%;background:var(--red);flex:none}
+  .issue .c{margin-left:auto;color:var(--red);font-size:11.5px}
+  .side .close{position:absolute;top:16px;right:16px}
+  .hint{color:var(--muted);font-size:11.5px;margin-top:14px;line-height:1.7}
+
+  /* 阈值抽屉 */
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(380px,92vw);background:var(--panel);
+    border-left:1px solid var(--line);box-shadow:-20px 0 50px rgba(16,24,40,.12);z-index:70;
+    transform:translateX(102%);transition:transform .22s ease;display:flex;flex-direction:column}
+  .drawer.on{transform:none}
+  .drawer .hd{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+  .drawer .bd{padding:16px 20px;overflow-y:auto;flex:1}
+  .drawer .ft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px}
+  .sl{margin-bottom:16px}
+  .sl .lab{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px}
+  .sl .lab b{font-weight:600} .sl .lab i{color:var(--brand);font-style:normal;font-variant-numeric:tabular-nums}
+  .sl input[type=range]{width:100%;accent-color:var(--brand)}
+  .sl .tip{color:var(--muted);font-size:11px;margin-top:2px}
+
+  .empty{text-align:center;color:var(--muted);padding:80px 20px;font-size:13.5px}
+  .empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:6px}
+  @media (max-width:900px){
+    .viewer{grid-template-columns:1fr;height:92vh}
+    .side{border-left:none;border-top:1px solid var(--line);max-height:38vh}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>PhotoClassifierPro <span class="ver" id="ver"></span></div>
+  <div class="spacer"></div>
+  <div class="row">
+    <input type="text" id="root" placeholder="照片目录，例如 D:\photos" spellcheck="false">
+    <button class="btn primary" id="scanBtn">开始扫描</button>
+    <button class="btn" id="stopBtn" style="display:none">停止</button>
+    <button class="btn" id="thBtn">阈值</button>
+  </div>
+</header>
+
+<main>
+  <div class="progress" id="prog"><i id="progBar"></i></div>
+  <div class="status" id="status">填一个目录，点「开始扫描」。源文件只读，不会改动任何照片。</div>
+
+  <div class="cards" id="cards" style="display:none">
+    <div class="card"><div class="k">扫描总数</div><div class="v" id="cTotal">0</div></div>
+    <div class="card red"><div class="k">质量问题</div><div class="v" id="cIssue">0</div></div>
+    <div class="card amber"><div class="k">重复</div><div class="v" id="cDup">0</div></div>
+    <div class="card"><div class="k">损坏</div><div class="v" id="cBad">0</div></div>
+    <div class="card green"><div class="k">正常</div><div class="v" id="cOk">0</div></div>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none">
+    <button class="tab on" data-f="all">全部<span class="n" id="nAll">0</span></button>
+    <button class="tab" data-f="issue">问题<span class="n" id="nIssue">0</span></button>
+    <button class="tab" data-f="dup">重复<span class="n" id="nDup">0</span></button>
+    <button class="tab" data-f="ok">正常<span class="n" id="nOk">0</span></button>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="csvBtn">导出 CSV</button>
+    <button class="btn ghost" id="organizeBtn">归档废片…</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty"><b>还没有结果</b>扫描完成后这里会显示每张照片的检测结论</div>
+</main>
+
+<!-- 预览 -->
+<div class="mask" id="mask">
+  <div class="viewer">
+    <div class="stage" id="stage">
+      <img id="bigImg" alt="">
+      <div id="dirtLayer"></div>
+      <button class="nav prev" id="prevBtn">‹</button>
+      <button class="nav next" id="nextBtn">›</button>
+      <div class="zoombar">
+        <button id="zoomOut">−</button>
+        <span class="pct" id="zoomPct">100%</span>
+        <button id="zoomIn">＋</button>
+        <button id="zoomFit" title="适应窗口">⤢</button>
+      </div>
+    </div>
+    <aside class="side">
+      <h3 id="pvName">—</h3>
+      <div class="sub" id="pvSub"></div>
+      <div id="pvIssues"></div>
+      <div id="pvMetrics"></div>
+      <div class="hint">← → 切换 · +/− 缩放 · 0 适应窗口 · Esc 关闭</div>
+    </aside>
+  </div>
+</div>
+
+<!-- 阈值 -->
+<div class="drawer" id="drawer">
+  <div class="hd"><b>检测阈值</b><div class="spacer"></div><button class="btn ghost" id="thClose">关闭</button></div>
+  <div class="bd" id="thBody"></div>
+  <div class="ft">
+    <button class="btn" id="thReset">恢复默认</button>
+    <div class="spacer"></div>
+    <button class="btn primary" id="thSave">应用</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { items: [], filter: 'all', root: '', th: null, specs: null, cur: -1, zoom: 1, panX: 0, panY: 0 };
+let es = null;
+
+const LABEL_COLOR = {
+  '损坏':'red','模糊':'red','空镜':'amber','噪点':'amber','欠曝':'amber','过曝':'amber',
+  '脏污':'amber','闭眼':'blue','重复':'blue'
+};
+
+function fmtSize(n){ if(n<1024)return n+' B'; if(n<1048576)return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function boot(){
+  try{
+    const r = await fetch('/api/version'); const j = await r.json();
+    $('#ver').textContent = j.version || '';
+  }catch(e){}
+  loadThresholds();
+}
+
+async function loadThresholds(){
+  const r = await fetch('/api/thresholds'); const j = await r.json();
+  state.th = j.current; state.specs = j.specs; renderThresholds();
+}
+
+const TH_LABELS = {
+  blurLapStd:['模糊敏感度','拉普拉斯标准差低于此值判模糊 · 调大更严（更多标红）'],
+  noiseFloor:['噪点敏感度','平坦区噪声底线高于此值判噪点 · 调小更严'],
+  blankStd:['空镜敏感度','全局灰度标准差低于此值判空镜 · 调大更严'],
+  expUnder:['欠曝均值线','平均亮度低于此值且死黑占比>35% 判欠曝 · 调大更严'],
+  expOver:['过曝均值线','平均亮度高于此值且死白占比>80% 判过曝 · 调小更严'],
+  dupSim:['重复相似度','相似度高于此值判重复 · 调大更严'],
+  blinkEdge:['闭眼敏感度','眼部边缘密度低于此值判闭眼 · 调大更严']
+};
+
+function renderThresholds(){
+  if(!state.th || !state.specs) return;
+  const box = $('#thBody'); box.innerHTML = '';
+  for(const [k,spec] of Object.entries(state.specs)){
+    const [name,tip] = TH_LABELS[k] || [k,''];
+    const v = state.th[k];
+    const el = document.createElement('div');
+    el.className = 'sl';
+    el.innerHTML = `<div class="lab"><b>${name}</b><i id="v_${k}">${v}</i></div>
+      <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${v}" data-k="${k}">
+      <div class="tip">${tip}</div>`;
+    box.appendChild(el);
+  }
+  box.querySelectorAll('input[type=range]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const k = e.target.dataset.k;
+      state.th[k] = parseFloat(e.target.value);
+      document.getElementById('v_'+k).textContent = e.target.value;
+    });
+  });
+}
+
+$('#thBtn').onclick = ()=> $('#drawer').classList.add('on');
+$('#thClose').onclick = ()=> $('#drawer').classList.remove('on');
+$('#thReset').onclick = async ()=>{
+  state.th = { ...state.th };
+  const r = await fetch('/api/thresholds'); const j = await r.json();
+  state.th = j.default; renderThresholds();
+};
+$('#thSave').onclick = async ()=>{
+  const r = await fetch('/api/thresholds',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.th)});
+  const j = await r.json();
+  state.th = j.current;
+  $('#drawer').classList.remove('on');
+  setStatus('阈值已应用（版本 '+j.version+'）。重新扫描后生效。');
+};
+
+function setStatus(t){ $('#status').textContent = t; }
+
+$('#scanBtn').onclick = ()=>{
+  const root = $('#root').value.trim();
+  if(!root){ setStatus('先填一个照片目录。'); $('#root').focus(); return; }
+  startScan(root);
+};
+
+function startScan(root){
+  if(es) es.close();
+  state.root = root; state.items = []; state.filter='all';
+  $('#grid').innerHTML=''; $('#empty').style.display='none';
+  $('#cards').style.display='grid'; $('#tabs').style.display='flex';
+  $('#scanBtn').disabled = true; $('#stopBtn').style.display='inline-block';
+  $('#prog').classList.add('on'); $('#progBar').style.width='0%';
+  setStatus('正在收集文件…');
+
+  const url = `/api/scan?root=${encodeURIComponent(root)}&face=1`;
+  es = new EventSource(url);
+
+  es.addEventListener('progress', ev=>{
+    const p = JSON.parse(ev.data);
+    const pct = p.total ? (p.done*100/p.total) : 0;
+    $('#progBar').style.width = pct.toFixed(1)+'%';
+    setStatus(`[${p.done}/${p.total}] ${p.current} · 问题 ${p.issues}` + (p.failed?` · 损坏 ${p.failed}`:''));
+  });
+  es.addEventListener('done', ev=>{
+    const d = JSON.parse(ev.data);
+    state.items = d.items || [];
+    $('#progBar').style.width='100%';
+    setStatus(`扫描完成：${d.summary.total} 张，用时 ${(d.summary.elapsedMs/1000).toFixed(1)}s。`);
+    finishScan();
+  });
+  es.addEventListener('error', ev=>{
+    try{ const j = JSON.parse(ev.data); setStatus('扫描失败：'+j.error); }catch(e){ setStatus('扫描中断。'); }
+    finishScan();
+  });
+  es.onerror = ()=>{ if(es && es.readyState===2){ finishScan(); } };
+}
+
+function finishScan(){
+  if(es){ es.close(); es=null; }
+  $('#scanBtn').disabled=false; $('#stopBtn').style.display='none';
+  $('#prog').classList.remove('on');
+  render();
+}
+
+$('#stopBtn').onclick = ()=>{ if(es){ es.close(); es=null; finishScan(); setStatus('已停止。'); } };
+
+function classify(it){
+  const r = it.result || {};
+  const labels = [];
+  if(r.flags & 1) labels.push('重复');
+  if(r.flags & 2) labels.push('损坏');
+  if(r.flags & 4) labels.push('空镜');
+  if(r.flags & 8) labels.push('脏污');
+  if(r.flags & 16) labels.push('模糊');
+  if(r.flags & 32){
+    if(r.exposure && r.exposure.under) labels.push('欠曝');
+    if(r.exposure && r.exposure.over) labels.push('过曝');
+  }
+  if(r.flags & 64) labels.push('噪点');
+  if(r.flags & 128) labels.push('闭眼');
+  return labels;
+}
+
+function render(){
+  const items = state.items;
+  let issues=0, dups=0, bad=0;
+  const decorated = items.map(it=>{
+    const labels = classify(it);
+    const isIssue = labels.some(l=>l!=='重复');
+    if(isIssue) issues++;
+    if(labels.includes('重复')) dups++;
+    if(labels.includes('损坏')) bad++;
+    return { it, labels, isIssue };
+  });
+  $('#cTotal').textContent = items.length;
+  $('#cIssue').textContent = issues;
+  $('#cDup').textContent = dups;
+  $('#cBad').textContent = bad;
+  $('#cOk').textContent = items.length - issues - decorated.filter(d=>!d.isIssue && d.labels.includes('重复')).length;
+  $('#nAll').textContent = items.length;
+  $('#nIssue').textContent = issues;
+  $('#nDup').textContent = dups;
+  $('#nOk').textContent = items.length - issues;
+
+  const f = state.filter;
+  const shown = decorated.filter(d=>{
+    if(f==='issue') return d.isIssue;
+    if(f==='dup') return d.labels.includes('重复');
+    if(f==='ok') return !d.isIssue && !d.labels.includes('重复');
+    return true;
+  });
+
+  const grid = $('#grid');
+  grid.innerHTML = '';
+  if(!shown.length){
+    $('#empty').style.display='block';
+    $('#empty').innerHTML = '<b>没有符合条件的照片</b>换个筛选条件试试';
+    return;
+  }
+  $('#empty').style.display='none';
+
+  const frag = document.createDocumentFragment();
+  shown.forEach((d, idx)=>{
+    const el = document.createElement('div');
+    el.className='ph';
+    const badges = d.labels.length
+      ? d.labels.map(l=>`<span class="b ${LABEL_COLOR[l]||''}">${l}</span>`).join('')
+      : '<span class="b green">正常</span>';
+    el.innerHTML = `<div class="thumb"><img loading="lazy" src="/api/thumb?path=${encodeURIComponent(d.it.path)}&size=320" alt=""></div>
+      <div class="meta"><div class="name" title="${esc(d.it.rel)}">${esc(d.it.rel.split(/[\\/]/).pop())}</div>
+      <div class="badges">${badges}</div></div>`;
+    el.onclick = ()=> openViewer(state.items.indexOf(d.it));
+    frag.appendChild(el);
+  });
+  grid.appendChild(frag);
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    state.filter = t.dataset.f;
+    render();
+  };
+});
+
+$('#csvBtn').onclick = ()=>{ window.location = '/api/export.csv'; };
+
+$('#organizeBtn').onclick = async ()=>{
+  if(!confirm('把废片按类型移动到 _待整理/ 下？\n\n这是唯一会改动文件的操作，不会删除任何照片，同名文件会自动加序号。')) return;
+  const r = await fetch('/api/organize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'move'})});
+  if(!r.ok){ setStatus('归档失败：'+await r.text()); return; }
+  const j = await r.json();
+  setStatus(`已归档 ${j.done}/${j.total} 个文件到 _待整理/。重新扫描可查看结果。`);
+};
+
+// ───────── 预览 ─────────
+function openViewer(idx){
+  if(idx<0) return;
+  state.cur = idx;
+  $('#mask').classList.add('on');
+  showCurrent();
+}
+function closeViewer(){
+  $('#mask').classList.remove('on');
+  state.cur = -1;
+}
+function showCurrent(){
+  const it = state.items[state.cur];
+  if(!it) return;
+  const r = it.result || {};
+  $('#bigImg').src = '/api/full?path='+encodeURIComponent(it.path);
+  $('#pvName').textContent = it.rel.split(/[\\/]/).pop();
+  $('#pvSub').textContent = `${it.rel} · ${fmtSize(it.size)} · ${r.width||0}×${r.height||0}`;
+
+  const labels = classify(it);
+  $('#pvIssues').innerHTML = labels.length
+    ? labels.map(l=>{
+        let v='';
+        if(l==='模糊') v=(r.lapStd||0).toFixed(1);
+        if(l==='噪点') v=(r.noiseFloor||0).toFixed(1);
+        if(l==='空镜') v=(r.grayStd||0).toFixed(1);
+        if(l==='闭眼') v=(r.blink? (r.blink.closed+'/'+r.blink.faces) : '');
+        if(l==='重复') v= it.dupGroup? ('组 '+it.dupGroup):'';
+        return `<div class="issue"><span class="d"></span>${l}<span class="c">${v}</span></div>`;
+      }).join('')
+    : '<div class="issue" style="background:var(--green-soft);color:#065f46"><span class="d" style="background:var(--green)"></span>未发现质量问题</div>';
+
+  const rows = [
+    ['亮度均值', (r.expMean||0).toFixed(1)],
+    ['死黑占比', ((r.expClipLow||0)*100).toFixed(1)+'%'],
+    ['死白占比', ((r.expClipHigh||0)*100).toFixed(1)+'%'],
+    ['拉普拉斯标准差', (r.lapStd||0).toFixed(2)],
+    ['噪声底线', (r.noiseFloor||0).toFixed(2)],
+  ];
+  if(r.blink && r.blink.faces){
+    rows.push(['人脸 / 闭眼', `${r.blink.faces} / ${r.blink.closed}`]);
+    rows.push(['眼部最小边缘密度', (r.blink.minEdge||0).toFixed(3)]);
+  }
+  $('#pvMetrics').innerHTML = rows.map(([k,v])=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+
+  // 脏污红框
+  const layer = $('#dirtLayer'); layer.innerHTML='';
+  if(r.lensDirt && r.lensDirt.boxes){
+    r.lensDirt.boxes.forEach(b=>{
+      const d = document.createElement('div');
+      d.className='dirtbox';
+      d.dataset.x=b.x; d.dataset.y=b.y; d.dataset.w=b.w; d.dataset.h=b.h;
+      layer.appendChild(d);
+    });
+  }
+  resetZoom();
+}
+
+function resetZoom(){
+  const img = $('#bigImg');
+  const stage = $('#stage');
+  const fit = Math.min(stage.clientWidth / (img.naturalWidth||1), stage.clientHeight / (img.naturalHeight||1), 1);
+  state.zoom = fit || 1; state.panX=0; state.panY=0;
+  applyTransform();
+}
+function applyTransform(){
+  const img = $('#bigImg');
+  img.style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
+  $('#zoomPct').textContent = Math.round(state.zoom*100)+'%';
+  const rect = img.getBoundingClientRect();
+  const stageRect = $('#stage').getBoundingClientRect();
+  document.querySelectorAll('.dirtbox').forEach(d=>{
+    const x=+d.dataset.x, y=+d.dataset.y, w=+d.dataset.w, h=+d.dataset.h;
+    d.style.left = (rect.left - stageRect.left + rect.width*x)+'px';
+    d.style.top = (rect.top - stageRect.top + rect.height*y)+'px';
+    d.style.width = (rect.width*w)+'px';
+    d.style.height = (rect.height*h)+'px';
+  });
+}
+$('#bigImg').addEventListener('load', ()=> resetZoom());
+
+$('#zoomIn').onclick = ()=>{ state.zoom = Math.min(state.zoom*1.25, 8); applyTransform(); };
+$('#zoomOut').onclick = ()=>{ state.zoom = Math.max(state.zoom/1.25, .05); applyTransform(); };
+$('#zoomFit').onclick = resetZoom;
+$('#prevBtn').onclick = ()=>{ if(state.cur>0){ state.cur--; showCurrent(); } };
+$('#nextBtn').onclick = ()=>{ if(state.cur<state.items.length-1){ state.cur++; showCurrent(); } };
+$('#mask').onclick = e=>{ if(e.target.id==='mask'||e.target.id==='stage') closeViewer(); };
+
+$('#stage').addEventListener('wheel', e=>{
+  e.preventDefault();
+  const k = e.deltaY < 0 ? 1.12 : 1/1.12;
+  state.zoom = Math.min(Math.max(state.zoom*k, .05), 8);
+  applyTransform();
+}, {passive:false});
+
+let drag=null;
+$('#stage').addEventListener('mousedown', e=>{
+  if(e.target.tagName!=='IMG') return;
+  drag = {x:e.clientX-state.panX, y:e.clientY-state.panY};
+  $('#bigImg').classList.add('zoomed');
+});
+window.addEventListener('mousemove', e=>{
+  if(!drag) return;
+  state.panX = e.clientX-drag.x; state.panY = e.clientY-drag.y;
+  applyTransform();
+});
+window.addEventListener('mouseup', ()=>{ drag=null; $('#bigImg').classList.remove('zoomed'); });
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    if($('#mask').classList.contains('on')) closeViewer();
+    else $('#drawer').classList.remove('on');
+  }
+  if(!$('#mask').classList.contains('on')) return;
+  if(e.key==='ArrowLeft') $('#prevBtn').click();
+  if(e.key==='ArrowRight') $('#nextBtn').click();
+  if(e.key==='+'||e.key==='=') $('#zoomIn').click();
+  if(e.key==='-') $('#zoomOut').click();
+  if(e.key==='0') resetZoom();
+});
+
+boot();
+</script>
+</body>
+</html>

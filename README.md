@@ -1,134 +1,241 @@
 # PhotoClassifierPro
 
-该项目为 [PhotoClassifier](https://github.com/shenglihalisen/photo-classifier) 优化版，智能检测损坏、空镜、闭眼、模糊、遮挡等缺陷照片，一键整理您的相册。
+照片质量批量筛片工具。**一个 exe，零依赖**——不需要 Python、不需要 OpenCV、不需要 ffmpeg。
+
+双击打开浏览器界面，选一个目录，它会把损坏、空镜、模糊、噪点、曝光异常、镜头脏污、重复、闭眼这八类问题挑出来，标上徽章给你看，**绝不改动或删除你的照片**。
+
+检测算法与阈值来自 [medreview](https://github.com/shenglihalisen/medreview) 的 QC v5，那套数值是在真实素材上校准过的。
 
 <div align="center">
 
-[![GitHub release](https://img.shields.io/github/v/release/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/releases)
-[![GitHub last commit](https://img.shields.io/github/last-commit/shenglihalisen/PhotoClassifierPro)](https://github.com/shenglihalisen/PhotoClassifierPro/commits/main)
+[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Platform](https://img.shields.io/badge/Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 </div>
 
 ---
 
-## 功能特性
+## 1. 为什么是 Go 重写
 
-- **5 种缺陷检测**：损坏、空镜、闭眼、模糊、遮挡
-- **双端支持**：PyQt5 桌面端 + Flask Web 端
-- **两种模式**：自动模式（一键处理）/ 手动确认（逐张审核）
-- **批量处理**：支持文件夹批量扫描和文件拖拽上传
-- **灵活操作**：自动将废片按缺陷类型分类到子文件夹
+这个项目原本是 Python（OpenCV + MediaPipe + Flask + PyQt5）。Go 重写解决了三个实际问题：
 
-## 支持的图片格式
+| 老问题 | 现在 |
+|---|---|
+| PyInstaller 打包 200MB+，还要挑 Python 版本 | 单个 12MB 可执行文件 |
+| MediaPipe 在 Python 3.14 上装不上（Pro 版为此弃用它） | 纯 Go 实现 Haar 级联 + 边缘密度，无第三方运行时 |
+| 检测算法和 medreview 各写一份，数值对不上 | 算法同源，测量口径与阈值一致 |
+| 扫描几千张照片慢且吃内存 | 并发解码，8 路流水线 |
 
-```
-JPG, JPEG, PNG, BMP, TIFF, WebP, GIF, HEIC, HEIF
-```
+## 2. 检测器
 
-## 安装
+| 检测器 | 判据 | 输出 |
+|---|---|---|
+| 损坏 corrupted | 解码失败 / 文件截断 | 布尔 + 错误原因 |
+| 空镜 blank | 全局灰度标准差 < 8 | 标准差 |
+| 模糊 blur | 长边 1024 灰度上的拉普拉斯**标准差** < 15 | 标准差 |
+| 噪点 noise | 16px 块中最平坦 10% 的标准差（噪声底线）> 5 | 噪声底线 |
+| 欠曝 / 过曝 exposure | 均值 < 100 且死黑占比 > 35%；均值 > 150 且死白占比 > 80% | 均值 + 两端占比 |
+| 镜头脏污 lens-dirt | 8×8 网格内「低方差 + 邻域亮度突兀」的成团异常块 | 置信度 + 红框位置 |
+| 重复 duplicate | pHash 汉明 ≤ 5 **且** 像素差异 ≤ 5% | 重复组编号 |
+| 闭眼 blink | Haar 检人脸 → 眼部区域 Sobel 边缘密度 < 0.10（**两眼都低**才判） | 人脸数 / 闭眼数 |
 
-### 从源码运行
+> 阈值默认值遵循「宁漏勿滥」——真实素材两侧留 2~3 倍余量。所有阈值可在界面右侧「阈值」抽屉里实时调，改完重新扫描生效。
+
+## 3. 快速开始
+
+### 用发行版
+
+下载 `PhotoClassifierPro.exe`，双击。浏览器会自动打开 `http://127.0.0.1:8080`。
+
+### 从源码构建
 
 ```bash
-# 克隆仓库
-git clone https://github.com/shenglihalisen/PhotoClassifierPro.git
-cd PhotoClassifierPro
+# 需要 Go 1.24+
+go build -trimpath -ldflags "-s -w -H=windowsgui" -o PhotoClassifierPro.exe .
 
-# 安装依赖
-pip install -r requirements.txt
-
-# 运行桌面端
-python run_desktop.py
-
-# 运行 Web 端
-python run_web.py
+# 或者用批处理（Windows，自动跑测试）
+build-windows.bat
 ```
 
-Web 端启动后访问 `http://localhost:5000`。
+Linux / macOS：
 
-### 下载发行版
+```bash
+go build -trimpath -ldflags "-s -w" -o photo-classifier .
+./photo-classifier -port 8080
+```
 
-前往 [Releases](https://github.com/shenglihalisen/PhotoClassifierPro/releases) 页面下载对应平台的可执行文件。
+## 4. 三种用法
 
-| 文件 | 说明 |
-|------|------|
-| `PhotoClassifierPro-Desktop.exe` | 桌面端（PyQt5），无需浏览器 |
-| `PhotoClassifierPro-Web.exe` | Web 端（Flask），启动后通过浏览器访问使用 |
+**浏览器界面（默认）**
 
-## 使用方法
+```bash
+PhotoClassifierPro.exe                 # 自动开浏览器
+PhotoClassifierPro.exe -port 9000      # 换端口
+PhotoClassifierPro.exe -no-browser     # 不开浏览器
+```
 
-### Web 端
+**命令行扫描**
 
-1. 打开浏览器访问 `http://localhost:5000`
-2. 选择「上传文件」或「选择文件夹」上传要扫描的照片
-3. 选择扫描模式（自动 / 手动确认）
-4. 点击「开始扫描」
-5. 查看扫描结果，对废片进行移动或删除操作
+```bash
+PhotoClassifierPro.exe -scan D:/photos            # 打印报告
+PhotoClassifierPro.exe -scan D:/photos -csv out.csv  # 导出 CSV
+PhotoClassifierPro.exe -scan D:/photos -json      # JSON 输出
+PhotoClassifierPro.exe -scan D:/photos -move      # 把废片移到 _待整理/<类型>/
+PhotoClassifierPro.exe -scan D:/photos -copy      # 复制而不是移动
+PhotoClassifierPro.exe -scan D:/photos -face=false  # 关掉闭眼检测（更快）
+```
 
-### 桌面端
+**整理动作的安全约束**
 
-1. 运行 `PhotoClassifierPro-Desktop.exe` 或 `python run_desktop.py`
-2. 选择要扫描的文件夹
-3. 等待扫描完成
-4. 查看分类结果并处理废片
+- 只移动/复制，**永不删除**
+- 目标固定在源目录下的 `_待整理/`，同名文件自动加 `_1`、`_2`，不覆盖
+- 默认只出报告不动文件，`-move` / `-copy` 才真的动
+- 只由「重复」触发的项默认不归档——删哪张该由人决定
 
-## 检测器说明
+## 5. 阈值
 
-| 检测器 | 检测内容 | 技术原理 |
-|--------|----------|----------|
-| 损坏检测 | 文件损坏、无法打开、截断的图片 | 文件头魔数验证 + PIL 解码尝试 |
-| 空镜检测 | 纯色、全黑、全白、大面积单一颜色的照片 | 颜色直方图 + 亮度均方差分析 |
-| 闭眼检测 | 人物闭眼的照片 | OpenCV Haar + Canny 边缘密度分析 |
-| 模糊检测 | 对焦不准、运动模糊的照片 | 拉普拉斯方差 + Sobel 边缘强度综合评分 |
-| 遮挡检测 | 镜头被遮挡的照片 | 信息熵 + 低对比度区域分析 |
+八个检测器的阈值都能运行时调整。默认值来自 medreview 在真实素材上的校准：
 
-## 项目结构
+| 参数 | 默认 | 范围 | 方向 |
+|---|---|---|---|
+| `blurLapStd` | 15.0 | 5–60 | 调大更严 |
+| `noiseFloor` | 5.0 | 1–20 | 调小更严 |
+| `blankStd` | 8.0 | 2–30 | 调大更严 |
+| `expUnder` | 100 | 30–160 | 调大更严 |
+| `expOver` | 150 | 90–220 | 调小更严 |
+| `dupSim` | 0.95 | 0.5–1.0 | 调大更严 |
+| `blinkEdge` | 0.10 | 0.03–0.30 | 调大更严 |
+
+越界会被钳回范围（拖到头就是边界值，不会报错）。阈值改动会改变结果版本号，旧结果自动失效重算。
+
+## 6. 与 Python 版的差异
+
+| | Python 版 v2.0.4 | Go 版 v3.0.0 |
+|---|---|---|
+| 分发 | PyInstaller，200MB+ | 单文件 12MB |
+| 依赖 | OpenCV / MediaPipe / Flask / PyQt5 | 仅标准库 + x/image |
+| 检测器 | 5 个 | 8 个（+噪点/曝光/重复/脏污） |
+| 阈值 | 硬编码 | 可运行时调 + 范围钳制 |
+| 闭眼 | MediaPipe 关键点 / Haar+Canny | 纯 Go Haar + Sobel 边缘密度 |
+| 重复 | 无 | pHash + 像素二次确认 |
+| 界面 | PyQt5 + Flask 两套 | 一套浏览器界面，CLI 共用内核 |
+| 性能 | 单线程 | 并发解码（默认 ≤8 路） |
+
+## 7. 隐私与安全
+
+- 只监听 `127.0.0.1`，局域网访问不到。
+- 不上传任何照片。没有任何网络请求（除了打开本地浏览器）。
+- 缩略图接口做了路径校验，只能读当前扫描根目录内的文件。
+- 源文件全程只读（除非你显式点「归档」或加 `-move`）。
+
+## 8. 已知限制
+
+- **不支持 HEIC/HEIF 和相机 RAW（CR2/CR3/NEF/ARW）**。这两类需要 libheif / libraw 的 cgo 绑定，会破坏 `CGO_ENABLED=0` 的单文件前提。需要的话请先用工具转成 JPEG。
+- 闭眼检测基于 Haar 正脸模型，**侧脸、低头、遮挡严重的人脸检不出**。这是 Viola-Jones 的固有限制，不是 bug。
+- 闭眼阈值（0.10）需要在你的真实素材上再校准一次。合成素材只能验证方向。
+- 重复检测只在同一次扫描内生效，不跨目录做全库去重。
+- 界面是单用户的：同一时间只服务一个扫描任务。
+
+## 9. 项目结构
 
 ```
 PhotoClassifierPro/
-├── classifiers/          # 缺陷检测器
-│   ├── base.py           # 基类和类型定义
-│   ├── corrupted.py      # 损坏检测
-│   ├── empty.py          # 空镜检测
-│   ├── blink.py          # 闭眼检测
-│   ├── blur.py           # 模糊检测
-│   └── obstruction.py    # 遮挡检测
-├── engine/               # 分类引擎
-│   └── classifier.py     # 统一分类引擎
-├── desktop/              # 桌面端
-│   └── app.py            # PyQt5 界面
-├── web/                  # Web 端
-│   ├── app.py            # Flask 应用（含安全防护/频率限制/CSRF保护）
-│   └── templates/        # HTML 模板（Layui 前端界面）
-├── run_desktop.py        # 桌面端入口
-├── run_web.py            # Web 端入口
-├── requirements.txt      # Python 依赖
-├── CHANGELOG.md          # 更新日志
-└── README.md             # 本文件
+├── main.go              入口（Web / CLI）
+├── qc/                  检测算法（与 medreview QC v5 同源）
+│   ├── qc.go            七个图像检测器
+│   ├── decode.go        纯 Go 解码 + EXIF 转正 + 双尺度灰度
+│   ├── analyzer.go      检测流水线
+│   └── thresholds.go    阈值 + 钳制 + 版本指纹
+├── face/                人脸与闭眼（纯 Go）
+│   ├── cascade.go       Haar 级联解析 + 金字塔检测
+│   ├── blink.go         眼部边缘密度判闭眼
+│   ├── skin.go          肤色预筛
+│   └── data/            内嵌 haarcascade 模型（528KB）
+├── engine/              批量扫描、跨文件去重、归档
+├── web/                 HTTP API + 内嵌前端
+└── cmd/gentestdata/     合成测试素材生成器
 ```
 
-## 技术栈
+## 10. 许可证
 
-- **图像处理**：OpenCV、Pillow、NumPy
-- **桌面端**：PyQt5
-- **Web 端**：Flask + Layui
-- **打包**：PyInstaller
+MIT License。
 
-## 安全特性（Web 端）
+第三方组件：
+- [golang.org/x/image](https://golang.org/x/image)（BSD-3-Clause）：webp / tiff / bmp 解码。
+- `haarcascade_frontalface_alt2.xml`（[OpenCV](https://opencv.org/)，Apache-2.0 / 3-clause BSD）：人脸级联模型，随仓库分发。
 
-- 文件上传大小限制（单文件 50MB，总计 200MB）
-- 文件类型白名单验证（文件头魔数检查）
-- CSRF Token 防护
-- 请求频率限制
-- 路径遍历攻击防护
-- 删除操作二次确认 Token 机制
-- 错误信息脱敏
-- 临时文件自动清理
+---
 
-## 更新日志
+# English
 
-查看 [CHANGELOG.md](CHANGELOG.md) 了解详细更新记录。
+Photo triage tool. **One exe, zero dependencies** — no Python, no OpenCV, no ffmpeg.
 
-## 许可证
+Double-click, pick a folder, and it flags eight kinds of problems: corrupted, blank, blurry, noisy, badly exposed, lens-dirt, duplicates, and closed eyes. It **never modifies or deletes your photos**.
 
-MIT License
+The detectors and thresholds come from [medreview](https://github.com/shenglihalisen/medreview)'s QC v5, calibrated on real material.
+
+## 1. Detectors
+
+| Detector | Criterion | Output |
+|---|---|---|
+| corrupted | decode failure / truncated file | boolean + reason |
+| blank | global gray std < 8 | std |
+| blur | Laplacian **std** on a 1024px-long-edge gray < 15 | std |
+| noise | std of the flattest 10% of 16px blocks (noise floor) > 5 | floor |
+| exposure | mean < 100 and clipped-black > 35%; mean > 150 and clipped-white > 80% | mean + clip ratios |
+| lens-dirt | clustered low-variance blocks with abrupt local brightness in an 8×8 grid | confidence + boxes |
+| duplicate | pHash Hamming ≤ 5 **and** pixel diff ≤ 5% | group id |
+| blink | Haar face → eye-region Sobel edge density < 0.10 (**both eyes** must fail) | faces / closed |
+
+Thresholds default to the conservative side ("better a miss than a false alarm") with 2–3× margin on both ends. All of them are adjustable at runtime from the **Thresholds** drawer; re-scan to apply.
+
+## 2. Quick start
+
+```bash
+git clone https://github.com/shenglihalisen/PhotoClassifierPro.git
+cd PhotoClassifierPro
+go build -trimpath -ldflags "-s -w -H=windowsgui" -o PhotoClassifierPro.exe .
+```
+
+Run without arguments to get the browser UI at `http://127.0.0.1:8080`.
+
+```bash
+PhotoClassifierPro.exe -scan D:/photos              # report
+PhotoClassifierPro.exe -scan D:/photos -csv out.csv # export CSV
+PhotoClassifierPro.exe -scan D:/photos -move        # move rejects into _待整理/<type>/
+PhotoClassifierPro.exe -scan D:/photos -face=false  # skip the blink detector
+```
+
+## 3. Safety guarantees
+
+- Only binds to `127.0.0.1`. Not reachable from the LAN.
+- Uploads nothing. No network calls beyond opening your local browser.
+- Thumbnail API validates every path against the current scan root.
+- Source files are read-only unless you explicitly archive.
+- Archiving **moves or copies, never deletes**; collisions get `_1`, `_2` suffixes.
+
+## 4. Differences from the Python version
+
+| | Python v2.0.4 | Go v3.0.0 |
+|---|---|---|
+| Distribution | PyInstaller, 200MB+ | 12MB single binary |
+| Dependencies | OpenCV / MediaPipe / Flask / PyQt5 | stdlib + x/image only |
+| Detectors | 5 | 8 (+noise/exposure/dup/lens-dirt) |
+| Thresholds | hard-coded | runtime-adjustable with clamping |
+| Blink | MediaPipe landmarks / Haar+Canny | pure-Go Haar + Sobel edge density |
+| Duplicates | none | pHash + pixel double-check |
+| UI | PyQt5 + Flask | one browser UI, CLI shares the same core |
+| Concurrency | single-threaded | parallel decode (≤8 workers) |
+
+## 5. Known limitations
+
+- **No HEIC/HEIF or camera RAW** (CR2/CR3/NEF/ARW). Both need cgo bindings (libheif/libraw) that would break the `CGO_ENABLED=0` single-binary property. Convert to JPEG first.
+- The blink detector uses a frontal-face Haar cascade; **profiles, tilted heads and heavily occluded faces are missed**. That's a Viola-Jones limitation, not a bug.
+- The blink threshold (0.10) still wants calibration on your own material — synthetic images can only validate direction.
+- Duplicate detection is per-scan, not a global library dedupe.
+- The UI is single-user: one scan at a time.
+
+## 6. License
+
+MIT. Third-party: [golang.org/x/image](https://golang.org/x/image) (BSD-3-Clause), `haarcascade_frontalface_alt2.xml` from [OpenCV](https://opencv.org/) (Apache-2.0 / 3-clause BSD).

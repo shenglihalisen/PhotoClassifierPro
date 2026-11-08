@@ -1,41 +1,20 @@
-# Python
-__pycache__/
-*.py[cod]
-*\.class
-*.so
-*.egg-info/
-*.egg
-dist/
-build/
-*.spec
-*.whl
+# 构建产物
+PhotoClassifierPro.exe
+PhotoClassifierPro-*.exe
+*.test
+*.out
 
-# Virtual Environment
-venv/
-.venv/
-env/
-packages/
-
-# IDE
-.vscode/
+# Go 工作区
 .idea/
+.vscode/
 *.swp
-*.swo
-*~
 
-# OS
+# 本地素材（不要提交自己的照片库）
+testdata/
+_tmp/
+*.log
+
+# 系统
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Logs
-*.log
-crash.log
-
-# PyInstaller
-*.manifest
-*.exe
-
-# Temporary files
-*.tmp
-*.bak
