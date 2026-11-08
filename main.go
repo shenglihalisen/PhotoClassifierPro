@@ -45,6 +45,7 @@ func main() {
 		withFace  = flag.Bool("face", true, "启用闭眼检测（较慢，可用 -face=false 关闭）")
 		workers   = flag.Int("j", 0, "并发数，0=按 CPU 自动")
 		port      = flag.Int("port", 8080, "Web 界面端口")
+		bindAddr  = flag.String("addr", "127.0.0.1", "监听地址。0.0.0.0 允许局域网访问（无认证，慎用）")
 		noBrowser = flag.Bool("no-browser", false, "启动 Web 服务后不自动打开浏览器")
 		showVer   = flag.Bool("version", false, "打印版本号")
 	)
@@ -69,7 +70,7 @@ func main() {
 
 	// 默认：Web 界面
 	if err := web.Serve(web.Config{
-		Addr:      fmt.Sprintf("127.0.0.1:%d", *port),
+		Addr:      fmt.Sprintf("%s:%d", *bindAddr, *port),
 		Version:   version,
 		OpenBrowser: !*noBrowser,
 	}); err != nil {

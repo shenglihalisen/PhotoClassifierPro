@@ -1,5 +1,11 @@
 # PhotoClassifierPro
 
+> **定位：预览版（Preview）。**
+> 新功能先在这里落地，可能不稳定 —— 这是刻意的。验证过的改动会依次同步到
+> [photo-classifier](https://github.com/shenglihalisen/photo-classifier)（标准版）和
+> [photo-classifier-stable](https://github.com/shenglihalisen/photo-classifier-stable)（保守版）。
+> 想要「能干活」而不是「最新」的话，用标准版。
+
 照片质量批量筛片工具。**一个 exe，零依赖**——不需要 Python、不需要 OpenCV、不需要 ffmpeg。
 
 双击打开浏览器界面，选一个目录，它会把损坏、空镜、模糊、噪点、曝光异常、镜头脏污、重复、闭眼这八类问题挑出来，标上徽章给你看，**绝不改动或删除你的照片**。
